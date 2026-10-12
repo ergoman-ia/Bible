@@ -48,6 +48,7 @@ textarea{min-height:100px;resize:vertical;margin-top:10px}
 .seg input:focus-visible+span{outline:2px solid var(--blue);outline-offset:4px}
 .yearrow{display:grid;grid-template-columns:1fr auto;gap:6px}
 .hide{display:none!important}
+.syncing{text-align:center;color:var(--green);font-weight:700}
 .foot{font-size:12px;color:var(--muted);text-align:center;padding:8px}
 </style></head><body><main class="wrap">
 <h1>📖 매일 성경 읽기</h1>
@@ -245,13 +246,13 @@ function start(){
   if(firebaseConfig.apiKey==='YOUR_API_KEY'){$('appStatus').textContent='Firebase 설정 전이라 저장되지 않습니다.';return;}
   try{
     db=getFirestore(initializeApp(firebaseConfig));
-    $('appStatus').textContent='동기화 중...';
+    $('appStatus').textContent='동기화 중...';$('appStatus').classList.add('syncing');
     onSnapshot(cloudDoc(),snap=>{
       applyingRemote=true;
       const s=snap.exists()&&snap.data().state;
       if(s){state={...state,...s};if(!Array.isArray(state.entries))state.entries=[];}
       applyingRemote=false;
-      if(!snap.metadata.fromCache)$('appStatus').textContent='';
+      if(!snap.metadata.fromCache){$('appStatus').textContent='';$('appStatus').classList.remove('syncing');}
       let changed=false;
       if(!initialJumpDone&&s&&!snap.metadata.fromCache){initialJumpDone=true;changed=jumpToNextAfterLastRead();}
       render();
