@@ -54,7 +54,7 @@ textarea{min-height:100px;resize:vertical;margin-top:10px}
 <p class="muted" id="appStatus" role="status"></p>
 
 <section class="panel">
- <div class="row between"><span class="row"><span class="pill" id="dayPill">1일차</span><span class="done" id="readStatus"></span></span><span class="muted" id="readStats"></span></div>
+ <div class="row between"><span class="row"><span class="pill" id="dayPill"></span><span class="done" id="readStatus"></span></span><span class="muted" id="readStats"></span></div>
  <div class="passage" id="passage"></div>
  <div class="muted" id="planLabel"></div>
  <div class="progress"><div id="progressBar"></div></div>
@@ -245,7 +245,7 @@ function start(){
       if(s){state={...state,...s};if(!Array.isArray(state.entries))state.entries=[];}
       applyingRemote=false; $('appStatus').textContent='';
       let changed=false;
-      if(!initialJumpDone){initialJumpDone=true;changed=jumpToNextAfterLastRead();}
+      if(!initialJumpDone&&s&&!snap.metadata.fromCache){initialJumpDone=true;changed=jumpToNextAfterLastRead();}
       render();
       if(!snap.exists()||changed)save();
     },err=>{console.error(err);$('appStatus').textContent='불러오기 실패: '+err.message;render();});
