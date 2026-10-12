@@ -88,10 +88,8 @@ textarea{min-height:100px;resize:vertical;margin-top:10px}
   </div>
   <span>연도</span>
   <div class="yearrow"><select id="yearSelect" aria-label="통독 연도"></select><button class="primary" id="startBtn">적용</button></div>
-  <span>작성자</span>
-  <select id="authorEntrySelect" aria-label="작성자를 바꿀 기록"></select>
-  <span>새 이름</span>
-  <div class="yearrow"><input id="authorNameInput" maxlength="20" placeholder="새 작성자 이름" aria-label="새 작성자 이름"><button class="primary" id="authorChangeBtn">변경</button></div>
+  <span>기기 등록자</span>
+  <div class="yearrow"><input id="deviceNameInput" list="authorNames" maxlength="20" placeholder="이 기기의 새 등록자 이름" aria-label="이 기기의 새 등록자 이름"><datalist id="authorNames"></datalist><button class="primary" id="deviceNameBtn">변경</button></div>
   <span>기록</span>
   <button class="secondary" id="exportBtn">엑셀로 내려받기</button>
  </div>
@@ -137,6 +135,7 @@ function getAuthor(){
   $('authorLabel').textContent=a?'작성자: '+a:'';
   $('nameBtn').textContent=a?'이름 변경':'이름 입력';
   $('nameBtn').classList.toggle('hide',!!a);
+  $('deviceNameInput').placeholder=a?'현재: '+a:'이 기기의 등록자 이름';
   return a;
 }
 async function save(){
@@ -163,27 +162,16 @@ function render(){
   const r=document.querySelector(`input[name="plan"][value="${state.plan}"]`); if(r)r.checked=true;
   renderEntries();
 }
-function refreshAuthorSelect(){
-  const sel=$('authorEntrySelect'); const prev=sel.value;
-  sel.innerHTML='';
-  const list=state.entries.filter(e=>e.year===state.year&&e.plan===state.plan)
-    .sort((a,b)=>a.day-b.day||(a.createdAt||0)-(b.createdAt||0));
-  if(!list.length){const o=document.createElement('option');o.value='';o.textContent='기록이 없습니다';sel.append(o);return;}
-  const blank=document.createElement('option');blank.value='';blank.textContent='변경할 기록을 선택하세요';sel.append(blank);
-  list.forEach(e=>{
-    if(!e.id)e.id=`${e.author}_${e.year}_${e.plan}_${e.day}`;
-    const o=document.createElement('option');o.value=e.id;
-    o.textContent=`${e.day}일차 · ${e.author} · ${new Date(e.createdAt||Date.now()).toLocaleDateString('ko-KR')}`;
-    sel.append(o);
-  });
-  if([...sel.options].some(o=>o.value===prev))sel.value=prev;
+function refreshAuthorNames(){
+  const dl=$('authorNames'); dl.innerHTML='';
+  [...new Set(state.entries.map(e=>e.author).filter(Boolean))].sort().forEach(n=>{const o=document.createElement('option');o.value=n;dl.append(o);});
 }
 function renderEntries(){
+  refreshAuthorNames();
   const list=$('entriesList'); list.innerHTML='';
   $('familyTitle').textContent=`${state.day}일차 가족 기록`;
   const shown=state.entries.filter(e=>e.year===state.year&&e.plan===state.plan&&e.day===state.day).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   $('entryCount').textContent=shown.length?`${shown.length}명`:'';
-  refreshAuthorSelect();
   if(!shown.length){list.innerHTML='<div class="empty">아직 기록이 없습니다.</div>';return;}
   shown.forEach(e=>{
     if(!e.id)e.id=`${e.author}_${e.year}_${e.plan}_${e.day}`;
@@ -209,7 +197,9 @@ function renderEntries(){
       if(canEdit(e)){
         const b=document.createElement('button');b.className='secondary small';b.textContent='수정';
         b.onclick=()=>{editingId=e.id;editDraft=e.verseText;renderEntries();};
-        meta.append(b);
+        const del=document.createElement('button');del.className='secondary small';del.textContent='삭제';
+        del.onclick=async()=>{state.entries=state.entries.filter(x=>x.id!==e.id);if(editingId===e.id)editingId=null;render();await save();};
+        meta.append(b,del);
       }
     }
     list.append(art);
@@ -242,18 +232,19 @@ function initControls(){
     const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
     const a=document.createElement('a');a.href=url;a.download=`성경읽기_기록_${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(url);
   };
-  $('authorChangeBtn').onclick=async()=>{
-    const id=$('authorEntrySelect').value;
-    const name=$('authorNameInput').value.trim();
-    if(!id){alert('변경할 기록을 선택해 주세요.');return;}
-    if(!name){alert('새 작성자 이름을 입력해 주세요.');$('authorNameInput').focus();return;}
-    const e=state.entries.find(x=>x.id===id);
-    if(!e)return;
-    if(e.author===name){alert('현재 작성자와 같은 이름입니다.');return;}
-    if(!confirm(`'${e.author}' 기록의 작성자를 '${name}'(으)로 바꿀까요?`))return;
-    e.author=name; e.updatedAt=Date.now();
-    $('authorNameInput').value='';
-    render(); await save();
+  $('deviceNameBtn').onclick=async()=>{
+    const name=$('deviceNameInput').value.trim();
+    if(!name){alert('새 등록자 이름을 입력해 주세요.');$('deviceNameInput').focus();return;}
+    const old=getAuthor();
+    if(name===old){alert('현재 등록자와 같은 이름입니다.');return;}
+    const deviceId=getDeviceId();
+    const mine=state.entries.filter(x=>x.ownerId===deviceId||(!x.ownerId&&old&&x.author===old));
+    if(!confirm(`이 기기의 등록자를 '${name}'(으)로 바꿀까요?\n\n이 기기가 쓴 기록 ${mine.length}개도 '${name}'(으)로 바뀌고, 앞으로 쓰는 기록도 '${name}'(으)로 저장됩니다.`))return;
+    mine.forEach(x=>{x.author=name;x.updatedAt=Date.now();});
+    localStorage.setItem('bibleReadingAuthor',name);
+    $('deviceNameInput').value='';
+    render();
+    if(mine.length)await save();
   };
   $('nameBtn').onclick=async()=>{
     const old=getAuthor();
