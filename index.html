@@ -89,9 +89,9 @@ textarea{min-height:100px;resize:vertical;margin-top:10px}
   <span>연도</span>
   <div class="yearrow"><select id="yearSelect" aria-label="통독 연도"></select><button class="primary" id="startBtn">적용</button></div>
   <span>작성자</span>
-  <div class="yearrow"><select id="authorEntrySelect" aria-label="작성자를 바꿀 기록"></select><button class="primary" id="authorChangeBtn">변경</button></div>
+  <select id="authorEntrySelect" aria-label="작성자를 바꿀 기록"></select>
   <span>새 이름</span>
-  <input id="authorNameInput" maxlength="20" placeholder="새 작성자 이름" aria-label="새 작성자 이름">
+  <div class="yearrow"><input id="authorNameInput" maxlength="20" placeholder="새 작성자 이름" aria-label="새 작성자 이름"><button class="primary" id="authorChangeBtn">변경</button></div>
   <span>기록</span>
   <button class="secondary" id="exportBtn">엑셀로 내려받기</button>
  </div>
@@ -155,13 +155,17 @@ function render(){
   const r=document.querySelector(`input[name="plan"][value="${state.plan}"]`); if(r)r.checked=true;
   renderEntries();
 }
-function refreshAuthorSelect(shown){
+function refreshAuthorSelect(){
   const sel=$('authorEntrySelect'); const prev=sel.value;
   sel.innerHTML='';
-  shown.forEach(e=>{
+  const list=state.entries.filter(e=>e.year===state.year&&e.plan===state.plan)
+    .sort((a,b)=>a.day-b.day||(a.createdAt||0)-(b.createdAt||0));
+  if(!list.length){const o=document.createElement('option');o.value='';o.textContent='기록이 없습니다';sel.append(o);return;}
+  const blank=document.createElement('option');blank.value='';blank.textContent='변경할 기록을 선택하세요';sel.append(blank);
+  list.forEach(e=>{
     if(!e.id)e.id=`${e.author}_${e.year}_${e.plan}_${e.day}`;
     const o=document.createElement('option');o.value=e.id;
-    o.textContent=`${e.author} · ${new Date(e.createdAt||Date.now()).toLocaleDateString('ko-KR')}`;
+    o.textContent=`${e.day}일차 · ${e.author} · ${new Date(e.createdAt||Date.now()).toLocaleDateString('ko-KR')}`;
     sel.append(o);
   });
   if([...sel.options].some(o=>o.value===prev))sel.value=prev;
@@ -171,7 +175,7 @@ function renderEntries(){
   $('familyTitle').textContent=`${state.day}일차 가족 기록`;
   const shown=state.entries.filter(e=>e.year===state.year&&e.plan===state.plan&&e.day===state.day).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
   $('entryCount').textContent=shown.length?`${shown.length}명`:'';
-  refreshAuthorSelect(shown);
+  refreshAuthorSelect();
   if(!shown.length){list.innerHTML='<div class="empty">아직 기록이 없습니다.</div>';return;}
   shown.forEach(e=>{
     if(!e.id)e.id=`${e.author}_${e.year}_${e.plan}_${e.day}`;
