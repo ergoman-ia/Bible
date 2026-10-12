@@ -49,7 +49,7 @@ textarea{min-height:100px;resize:vertical;margin-top:10px}
 .yearrow{display:grid;grid-template-columns:1fr auto;gap:6px}
 .hide{display:none!important}
 .syncing{text-align:center;color:var(--green);font-weight:700}
-.is-mobile #adminToggle,.is-mobile #adminPanel,.is-mobile #authorLabel{display:none!important}
+.is-mobile #adminToggle,.is-mobile #adminPanel{display:none!important}
 .foot{font-size:12px;color:var(--muted);text-align:center;padding:8px}
 </style></head><body><main class="wrap">
 <h1>📖 매일 성경 읽기</h1>
@@ -88,8 +88,6 @@ textarea{min-height:100px;resize:vertical;margin-top:10px}
   </div>
   <span>연도</span>
   <div class="yearrow"><select id="yearSelect" aria-label="통독 연도"></select><button class="primary" id="startBtn">적용</button></div>
-  <span>기기 등록자</span>
-  <div class="yearrow"><input id="deviceNameInput" list="authorNames" maxlength="20" placeholder="이 기기의 새 등록자 이름" aria-label="이 기기의 새 등록자 이름"><datalist id="authorNames"></datalist><button class="primary" id="deviceNameBtn">변경</button></div>
   <span>기록</span>
   <button class="secondary" id="exportBtn">엑셀로 내려받기</button>
  </div>
@@ -134,8 +132,6 @@ function getAuthor(){
   $('nameInput').classList.toggle('hide',!!a);
   $('authorLabel').textContent=a?'작성자: '+a:'';
   $('nameBtn').textContent=a?'이름 변경':'이름 입력';
-  $('nameBtn').classList.toggle('hide',!!a);
-  $('deviceNameInput').placeholder=a?'현재: '+a:'이 기기의 등록자 이름';
   return a;
 }
 async function save(){
@@ -162,12 +158,7 @@ function render(){
   const r=document.querySelector(`input[name="plan"][value="${state.plan}"]`); if(r)r.checked=true;
   renderEntries();
 }
-function refreshAuthorNames(){
-  const dl=$('authorNames'); dl.innerHTML='';
-  [...new Set(state.entries.map(e=>e.author).filter(Boolean))].sort().forEach(n=>{const o=document.createElement('option');o.value=n;dl.append(o);});
-}
 function renderEntries(){
-  refreshAuthorNames();
   const list=$('entriesList'); list.innerHTML='';
   $('familyTitle').textContent=`${state.day}일차 가족 기록`;
   const shown=state.entries.filter(e=>e.year===state.year&&e.plan===state.plan&&e.day===state.day).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
@@ -217,7 +208,7 @@ function initControls(){
     e.preventDefault();
     const text=$('verseText').value.trim(); if(!text)return;
     let author=getAuthor();
-    if(!author){author=$('nameInput').value.trim();if(!author){alert('이름을 입력해 주세요.');$('nameInput').focus();return;}if(state.entries.some(x=>x.author===author)){alert(`'${author}' 이름은 이미 다른 가족이 사용 중이라 선택할 수 없습니다.`);$('nameInput').focus();return;}localStorage.setItem('bibleReadingAuthor',author);$('nameInput').value='';getAuthor();}
+    if(!author){author=$('nameInput').value.trim();if(!author){alert('이름을 입력해 주세요.');$('nameInput').focus();return;}localStorage.setItem('bibleReadingAuthor',author);$('nameInput').value='';getAuthor();}
     if(state.entries.some(x=>x.year===state.year&&x.plan===state.plan&&x.day===state.day&&x.author===author)){render();return;}
     state.entries.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),author,ownerId:getDeviceId(),verseText:text,year:state.year,plan:state.plan,day:state.day,createdAt:Date.now(),updatedAt:Date.now()});
     if(await save()){$('verseText').value='';render();}
@@ -232,27 +223,11 @@ function initControls(){
     const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
     const a=document.createElement('a');a.href=url;a.download=`성경읽기_기록_${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(url);
   };
-  $('deviceNameBtn').onclick=async()=>{
-    const name=$('deviceNameInput').value.trim();
-    if(!name){alert('새 등록자 이름을 입력해 주세요.');$('deviceNameInput').focus();return;}
-    const old=getAuthor();
-    if(name===old){alert('현재 등록자와 같은 이름입니다.');return;}
-    const deviceId=getDeviceId();
-    const mine=state.entries.filter(x=>x.ownerId===deviceId||(!x.ownerId&&old&&x.author===old));
-    if(!confirm(`이 기기의 등록자를 '${name}'(으)로 바꿀까요?\n\n이 기기가 쓴 기록 ${mine.length}개도 '${name}'(으)로 바뀌고, 앞으로 쓰는 기록도 '${name}'(으)로 저장됩니다.`))return;
-    mine.forEach(x=>{x.author=name;x.updatedAt=Date.now();});
-    localStorage.setItem('bibleReadingAuthor',name);
-    $('deviceNameInput').value='';
-    render();
-    if(mine.length)await save();
-  };
   $('nameBtn').onclick=async()=>{
     const old=getAuthor();
     const name=(prompt(old?'새 이름을 입력해 주세요.':'이름을 입력해 주세요.',old)||'').trim();
     if(!name||name===old)return;
     const mine=state.entries.filter(e=>e.author===old);
-    const taken=state.entries.some(e=>e.author===name);
-    if(taken){alert(`'${name}' 이름은 이미 다른 가족이 사용 중이라 선택할 수 없습니다.`);return;}
     let rename=false;
     if(old&&mine.length){
       rename=confirm(`'${old}' 이름으로 저장된 기록 ${mine.length}개도 '${name}'(으)로 바꿀까요?\n\n· 확인: 이름을 고칩니다.\n· 취소: 이 기기의 사용자만 바꿉니다.`);
