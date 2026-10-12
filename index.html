@@ -129,6 +129,7 @@ async function save(){
   catch(e){console.error(e);alert('저장하지 못했습니다. 인터넷 연결을 확인해 주세요.');return false;}
 }
 function render(){
+  try{localStorage.setItem('bibleReadingCache',JSON.stringify(state));}catch(e){}
   const planName=state.plan==='ot'?'구약부터':'신약부터';
   $('dayPill').textContent=`${state.day}일차`;
   $('passage').textContent=PLANS[state.plan][state.day-1];
@@ -236,14 +237,21 @@ function jumpToNextAfterLastRead(){
 let initialJumpDone=false;
 function start(){
   initControls(); getAuthor();
-  if(firebaseConfig.apiKey==='YOUR_API_KEY'){render();$('appStatus').textContent='Firebase 설정 전이라 저장되지 않습니다.';return;}
+  try{
+    const c=JSON.parse(localStorage.getItem('bibleReadingCache')||'null');
+    if(c&&typeof c==='object'){state={...state,...c};if(!Array.isArray(state.entries))state.entries=[];jumpToNextAfterLastRead();}
+  }catch(e){}
+  render();
+  if(firebaseConfig.apiKey==='YOUR_API_KEY'){$('appStatus').textContent='Firebase 설정 전이라 저장되지 않습니다.';return;}
   try{
     db=getFirestore(initializeApp(firebaseConfig));
+    $('appStatus').textContent='동기화 중...';
     onSnapshot(cloudDoc(),snap=>{
       applyingRemote=true;
       const s=snap.exists()&&snap.data().state;
       if(s){state={...state,...s};if(!Array.isArray(state.entries))state.entries=[];}
-      applyingRemote=false; $('appStatus').textContent='';
+      applyingRemote=false;
+      if(!snap.metadata.fromCache)$('appStatus').textContent='';
       let changed=false;
       if(!initialJumpDone&&s&&!snap.metadata.fromCache){initialJumpDone=true;changed=jumpToNextAfterLastRead();}
       render();
