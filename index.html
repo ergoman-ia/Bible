@@ -308,14 +308,13 @@ function makeZip(files){
 }
 // 연도별 시트: 행 = 일차(1~360), 열 = 등록자, 칸 = 그 사람이 쓴 기록
 function buildXlsx(entries){
-  const PLAN_NAME={ot:'구약부터',nt:'신약부터'};
   const years=[...new Set(entries.map(e=>e.year))].sort((a,b)=>a-b);
   const sheets=[];
   years.forEach(y=>{
     const ofYear=entries.filter(e=>e.year===y);
-    const plans=['ot','nt'].filter(p=>ofYear.some(e=>e.plan===p));
-    plans.forEach(plan=>{
-      const list=ofYear.filter(e=>e.plan===plan);
+    {
+      const plan=ofYear.reduce((a,b)=>(b.createdAt||0)>=(a.createdAt||0)?b:a).plan;
+      const list=ofYear;
       const first={};list.forEach(e=>{const t=e.createdAt||0;if(!(e.author in first)||t<first[e.author])first[e.author]=t;});
       const authors=Object.keys(first).sort((a,b)=>first[a]-first[b]||a.localeCompare(b,'ko'));
       const cell={};
@@ -331,9 +330,8 @@ function buildXlsx(entries){
       }
       const cols=`<col min="1" max="1" width="7" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/>`+(authors.length?`<col min="3" max="${2+authors.length}" width="42" customWidth="1"/>`:'');
       const xml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane xSplit="2" ySplit="1" topLeftCell="C2" activePane="bottomRight" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols>${cols}</cols><sheetData>${rows.join('')}</sheetData></worksheet>`;
-      let name=plans.length>1?`${y}년 ${PLAN_NAME[plan]}`:`${y}년`;
-      sheets.push({name,xml});
-    });
+      sheets.push({name:`${y}년`,xml});
+    }
   });
   const n=sheets.length;
   const files=[
