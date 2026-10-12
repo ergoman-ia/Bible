@@ -49,6 +49,16 @@ textarea{min-height:100px;resize:vertical;margin-top:10px}
 .yearrow{display:grid;grid-template-columns:1fr auto;gap:6px}
 .hide{display:none!important}
 .syncing{text-align:center;color:var(--green);font-weight:700}
+.modal{position:fixed;inset:0;background:rgba(23,54,93,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100}
+.modal-box{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:340px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.modal-box p{margin:0 0 16px;font-weight:700;color:var(--navy);font-size:17px;text-align:center}
+.modal-box .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.danger{background:#d64545;color:#fff}
+#nameModal .btns{margin-top:16px}
+.chk{display:flex;gap:8px;align-items:flex-start;margin:12px 0 0;font-size:14px;color:var(--ink);cursor:pointer}
+.chk input{width:auto;margin-top:5px;flex:none}
+.modal-err{color:#d64545;font-size:13px;font-weight:700;margin-top:10px;line-height:1.5}
+.modal-err:empty{display:none}
 .is-mobile #adminToggle,.is-mobile #adminPanel{display:none!important}
 .foot{font-size:12px;color:var(--muted);text-align:center;padding:8px}
 </style></head><body><main class="wrap">
@@ -96,10 +106,23 @@ textarea{min-height:100px;resize:vertical;margin-top:10px}
 <div class="row between"><span class="row"><span class="muted" id="authorLabel"></span><button class="secondary small" id="nameBtn" type="button">이름 입력</button></span><button class="secondary small" id="adminToggle" type="button">관리자</button></div>
 <div class="foot">통독표: JONATHAN 성경 통독표(360일 1독, 개역개정판)</div>
 </main>
+<div class="modal hide" id="delModal" role="dialog" aria-modal="true" aria-labelledby="delModalMsg">
+ <div class="modal-box"><p id="delModalMsg">정말 삭제할까요?</p>
+  <div class="btns"><button class="secondary" id="delNo" type="button">취소</button><button class="danger" id="delYes" type="button">삭제</button></div>
+ </div>
+</div>
+<div class="modal hide" id="nameModal" role="dialog" aria-modal="true" aria-labelledby="nameModalTitle">
+ <div class="modal-box"><p id="nameModalTitle">이름 변경</p>
+  <input id="nameModalInput" maxlength="20" autocomplete="off" placeholder="이름" aria-label="이름">
+  <label class="chk hide" id="nameModalRenameRow"><input type="checkbox" id="nameModalRename" checked><span id="nameModalRenameText"></span></label>
+  <div class="modal-err" id="nameModalError" role="alert"></div>
+  <div class="btns"><button class="secondary" id="nameNo" type="button">취소</button><button class="primary" id="nameYes" type="button">저장</button></div>
+ </div>
+</div>
 <script type="module">
 const PLANS = {"ot":["창세기 1 - 3","창세기 4 - 8","창세기 9 - 12","창세기 13 - 17","창세기 18 - 19","창세기 20 - 23","창세기 24","창세기 25 - 27","창세기 28 - 29","창세기 30 - 31","창세기 32 - 34","창세기 35 - 37","창세기 38 - 40","창세기 41 - 42","창세기 43 - 44","창세기 45 - 47","창세기 48 - 50","출애굽기 1 - 4","출애굽기 5 - 7","출애굽기 8 - 9","출애굽기 10 - 12","출애굽기 13 - 15","출애굽기 16 - 18","출애굽기 19 - 21","출애굽기 22 - 24","출애굽기 25 - 27","출애굽기 28 - 30","출애굽기 31 - 33","출애굽기 34 - 36","출애굽기 37 - 39","출애굽기 40 - 레위기 3","레위기 4 - 6","레위기 7 - 9","레위기 10 - 12","레위기 13 - 14","레위기 15 - 17","레위기 18 - 20","레위기 21 - 23","레위기 24 - 25","레위기 26 - 27","민수기 1 - 2","민수기 3 - 4","민수기 5 - 7","민수기 8 - 9","민수기 10 - 12","민수기 13 - 14","민수기 15 - 17","민수기 18 - 20","민수기 21 - 22","민수기 23 - 25","민수기 26 - 28","민수기 29 - 31","민수기 32 - 33","민수기 34 - 36","신명기 1 - 2","신명기 3 - 4","신명기 5 - 7","신명기 8 - 10","신명기 11 - 13","신명기 14 - 16","신명기 17 - 20","신명기 21 - 23","신명기 24 - 27","신명기 28","신명기 29 - 31","신명기 32 - 34","여호수아 1 - 3","여호수아 4 - 6","여호수아 7 - 8","여호수아 9 - 11","여호수아 12 - 14","여호수아 15 - 18","여호수아 19 - 21","여호수아 22 - 23","여호수아 24 - 사사기 1","사사기 2 - 4","사사기 5 - 6","사사기 7 - 8","사사기 9 - 10","사사기 11 - 13","사사기 14 - 16","사사기 17 - 18","사사기 19 - 20","사사기 21 - 룻기 2","룻기 3 - 사무엘상 1","사무엘상 2 - 4","사무엘상 5 - 8","사무엘상 9 - 11","사무엘상 12 - 13","사무엘상 14 - 15","사무엘상 16 - 17","사무엘상 18 - 20","사무엘상 21 - 22","사무엘상 23 - 25","사무엘상 26 - 28","사무엘상 29 - 31","사무엘하 1 - 3","사무엘하 4 - 6","사무엘하 7 - 10","사무엘하 11 - 12","사무엘하 13 - 14","사무엘하 15 - 16","사무엘하 17 - 18","사무엘하 19 - 20","사무엘하 21 - 23","사무엘하 24 - 열왕기상 1","열왕기상 2","열왕기상 3 - 5","열왕기상 6 - 7","열왕기상 8 - 9","열왕기상 10 - 11","열왕기상 12 - 13","열왕기상 14 - 15","열왕기상 16 - 18","열왕기상 19 - 20","열왕기상 21 - 22","열왕기하 1 - 2","열왕기하 3 - 4","열왕기하 5 - 6","열왕기하 7 - 8","열왕기하 9 - 10","열왕기하 11 - 14","열왕기하 15 - 16","열왕기하 17 - 18","열왕기하 19 - 21","열왕기하 22 - 23","열왕기하 24 - 역대상 1","역대상 2 - 4","역대상 5 - 6","역대상 7 - 9","역대상 10 - 11","역대상 12 - 15","역대상 16 - 18","역대상 19 - 22","역대상 23 - 25","역대상 26 - 28","역대상 29 - 역대하 2","역대하 3 - 6","역대하 7 - 9","역대하 10 - 12","역대하 13 - 17","역대하 18 - 20","역대하 21 - 23","역대하 24 - 25","역대하 26 - 29","역대하 30 - 31","역대하 32 - 34","역대하 35 - 36","에스라 1 - 4","에스라 5 - 7","에스라 8 - 9","에스라 10 - 느헤미야 3","느헤미야 4 - 6","느헤미야 7 - 8","느헤미야 9 - 11","느헤미야 12 - 13","에스더 1 - 4","에스더 5 - 8","에스더 9 - 욥기 3","욥기 4 - 8","욥기 9 - 13","욥기 14 - 18","욥기 19 - 23","욥기 24 - 29","욥기 30 - 33","욥기 34 - 37","욥기 38 - 42","시편 1 - 8","시편 9 - 17","시편 18 - 22","시편 23 - 30","시편 31 - 36","시편 37 - 41","시편 42 - 49","시편 50 - 56","시편 57 - 64","시편 65 - 69","시편 70 - 74","시편 75 - 78","시편 79 - 86","시편 87 - 91","시편 92 - 101","시편 102 - 105","시편 106 - 108","시편 109 - 118","시편 119","시편 120 - 129","시편 130 - 139","시편 140 - 147","시편 148 - 잠언 3","잠언 4 - 8","잠언 9 - 12","잠언 13 - 16","잠언 17 - 20","잠언 21 - 24","잠언 25 - 28","잠언 29 - 전도서 1","전도서 2 - 6","전도서 7 - 10","전도서 11 - 아가 5","아가 6 - 이사야 1","이사야 2 - 6","이사야 7 - 9","이사야 10 - 13","이사야 14 - 19","이사야 20 - 23","이사야 24 - 27","이사야 28 - 30","이사야 31 - 35","이사야 36 - 37","이사야 38 - 41","이사야 42 - 44","이사야 45 - 47","이사야 48 - 51","이사야 52 - 55","이사야 56 - 59","이사야 60 - 63","이사야 64 - 예레미야 1","예레미야 2 - 3","예레미야 4 - 5","예레미야 6 - 8","예레미야 9 - 11","예레미야 12 - 14","예레미야 15 - 17","예레미야 18 - 21","예레미야 22 - 23","예레미야 24 - 26","예레미야 27 - 29","예레미야 30 - 31","예레미야 32 - 33","예레미야 34 - 36","예레미야 37 - 38","예레미야 39 - 42","예레미야 43 - 45","예레미야 46 - 48","예레미야 49 - 50","예레미야 51","예레미야 52 - 예레미야애가 2","예레미야애가 3 - 5","에스겔 1 - 4","에스겔 5 - 8","에스겔 9 - 12","에스겔 13 - 15","에스겔 16 - 17","에스겔 18 - 20","에스겔 21 - 22","에스겔 23 - 24","에스겔 25 - 27","에스겔 28 - 30","에스겔 31 - 32","에스겔 33 - 35","에스겔 36 - 37","에스겔 38 - 40","에스겔 41 - 43","에스겔 44 - 46","에스겔 47 - 48","다니엘 1 - 2","다니엘 3 - 4","다니엘 5 - 7","다니엘 8 - 9","다니엘 10 - 11","다니엘 12 - 호세아 5","호세아 6 - 10","호세아 11 - 요엘 1","요엘 2 - 아모스 2","아모스 3 - 7","아모스 8 - 요나 1","요나 2 - 미가 3","미가 4 - 나훔 1","나훔 2 - 하박국 2","하박국 3 - 스바냐 3","학개 1 - 스가랴 3","스가랴 4 - 8","스가랴 9 - 14","말라기 1 - 4","마태복음 1 - 4","마태복음 5 - 6","마태복음 7 - 9","마태복음 10 - 11","마태복음 12 - 14","마태복음 15 - 17","마태복음 18 - 20","마태복음 21 - 22","마태복음 23 - 24","마태복음 25 - 26","마태복음 27 - 28","마가복음 1 - 3","마가복음 4 - 5","마가복음 6 - 8","마가복음 9 - 10","마가복음 11 - 12","마가복음 13 - 14","마가복음 15 - 16","누가복음 1 - 2","누가복음 3 - 5","누가복음 6 - 7","누가복음 8","누가복음 9 - 10","누가복음 11 - 12","누가복음 13 - 14","누가복음 15 - 17","누가복음 18 - 19","누가복음 20 - 22","누가복음 23 - 24","요한복음 1 - 2","요한복음 3 - 4","요한복음 5 - 6","요한복음 7 - 8","요한복음 9 - 10","요한복음 11 - 12","요한복음 13 - 15","요한복음 16 - 17","요한복음 18 - 20","요한복음 21 - 사도행전 1","사도행전 2 - 4","사도행전 5 - 7","사도행전 8 - 9","사도행전 10 - 12","사도행전 13 - 15","사도행전 16 - 17","사도행전 18 - 19","사도행전 20 - 22","사도행전 23 - 25","사도행전 26 - 27","사도행전 28 - 로마서 2","로마서 3 - 6","로마서 7 - 9","로마서 10 - 12","로마서 13 - 16","고린도전서 1 - 4","고린도전서 5 - 7","고린도전서 8 - 11","고린도전서 12 - 14","고린도전서 15 - 고린도후서 1","고린도후서 2 - 5","고린도후서 6 - 10","고린도후서 11 - 13","갈라디아서 1 - 4","갈라디아서 5 - 에베소서 2","에베소서 3 - 6","빌립보서 1 - 4","골로새서 1 - 4","데살로니가전서 1 - 5","데살로니가후서 1 - 디모데전서 2","디모데전서 3 - 디모데후서 1","디모데후서 2 - 디도서 2","디도서 3 - 히브리서 3","히브리서 4 - 7","히브리서 8 - 10","히브리서 11 - 13","야고보서 1 - 5","베드로전서 1 - 4","베드로전서 5 - 베드로후서 3","요한일서 1 - 4","요한일서 5 - 유다서 1","요한계시록 1 - 4","요한계시록 5 - 9","요한계시록 10 - 14","요한계시록 15 - 18","요한계시록 19 - 22"],"nt":["마태복음 1 - 4","마태복음 5 - 6","마태복음 7 - 9","마태복음 10 - 11","마태복음 12 - 14","마태복음 15 - 17","마태복음 18 - 20","마태복음 21 - 22","마태복음 23 - 24","마태복음 25 - 26","마태복음 27 - 28","마가복음 1 - 3","마가복음 4 - 5","마가복음 6 - 8","마가복음 9 - 10","마가복음 11 - 12","마가복음 13 - 14","마가복음 15 - 16","누가복음 1 - 2","누가복음 3 - 5","누가복음 6 - 7","누가복음 8","누가복음 9 - 10","누가복음 11 - 12","누가복음 13 - 14","누가복음 15 - 17","누가복음 18 - 19","누가복음 20 - 22","누가복음 23 - 24","요한복음 1 - 2","요한복음 3 - 4","요한복음 5 - 6","요한복음 7 - 8","요한복음 9 - 10","요한복음 11 - 12","요한복음 13 - 15","요한복음 16 - 17","요한복음 18 - 20","요한복음 21 - 사도행전 1","사도행전 2 - 4","사도행전 5 - 7","사도행전 8 - 9","사도행전 10 - 12","사도행전 13 - 15","사도행전 16 - 17","사도행전 18 - 19","사도행전 20 - 22","사도행전 23 - 25","사도행전 26 - 27","사도행전 28 - 로마서 2","로마서 3 - 6","로마서 7 - 9","로마서 10 - 12","로마서 13 - 16","고린도전서 1 - 4","고린도전서 5 - 7","고린도전서 8 - 11","고린도전서 12 - 14","고린도전서 15 - 고린도후서 1","고린도후서 2 - 5","고린도후서 6 - 10","고린도후서 11 - 13","갈라디아서 1 - 4","갈라디아서 5 - 에베소서 2","에베소서 3 - 6","빌립보서 1 - 4","골로새서 1 - 4","데살로니가전서 1 - 5","데살로니가후서 1 - 디모데전서 2","디모데전서 3 - 디모데후서 1","디모데후서 2 - 디도서 2","디도서 3 - 히브리서 3","히브리서 4 - 7","히브리서 8 - 10","히브리서 11 - 13","야고보서 1 - 5","베드로전서 1 - 4","베드로전서 5 - 베드로후서 3","요한일서 1 - 4","요한일서 5 - 유다서 1","요한계시록 1 - 4","요한계시록 5 - 9","요한계시록 10 - 14","요한계시록 15 - 18","요한계시록 19 - 22","창세기 1 - 3","창세기 4 - 8","창세기 9 - 12","창세기 13 - 17","창세기 18 - 19","창세기 20 - 23","창세기 24","창세기 25 - 27","창세기 28 - 29","창세기 30 - 31","창세기 32 - 34","창세기 35 - 37","창세기 38 - 40","창세기 41 - 42","창세기 43 - 44","창세기 45 - 47","창세기 48 - 50","출애굽기 1 - 4","출애굽기 5 - 7","출애굽기 8 - 9","출애굽기 10 - 12","출애굽기 13 - 15","출애굽기 16 - 18","출애굽기 19 - 21","출애굽기 22 - 24","출애굽기 25 - 27","출애굽기 28 - 30","출애굽기 31 - 33","출애굽기 34 - 36","출애굽기 37 - 39","출애굽기 40 - 레위기 3","레위기 4 - 6","레위기 7 - 9","레위기 10 - 12","레위기 13 - 14","레위기 15 - 17","레위기 18 - 20","레위기 21 - 23","레위기 24 - 25","레위기 26 - 27","민수기 1 - 2","민수기 3 - 4","민수기 5 - 7","민수기 8 - 9","민수기 10 - 12","민수기 13 - 14","민수기 15 - 17","민수기 18 - 20","민수기 21 - 22","민수기 23 - 25","민수기 26 - 28","민수기 29 - 31","민수기 32 - 33","민수기 34 - 36","신명기 1 - 2","신명기 3 - 4","신명기 5 - 7","신명기 8 - 10","신명기 11 - 13","신명기 14 - 16","신명기 17 - 20","신명기 21 - 23","신명기 24 - 27","신명기 28","신명기 29 - 31","신명기 32 - 34","여호수아 1 - 3","여호수아 4 - 6","여호수아 7 - 8","여호수아 9 - 11","여호수아 12 - 14","여호수아 15 - 18","여호수아 19 - 21","여호수아 22 - 23","여호수아 24 - 사사기 1","사사기 2 - 4","사사기 5 - 6","사사기 7 - 8","사사기 9 - 10","사사기 11 - 13","사사기 14 - 16","사사기 17 - 18","사사기 19 - 20","사사기 21 - 룻기 2","룻기 3 - 사무엘상 1","사무엘상 2 - 4","사무엘상 5 - 8","사무엘상 9 - 11","사무엘상 12 - 13","사무엘상 14 - 15","사무엘상 16 - 17","사무엘상 18 - 20","사무엘상 21 - 22","사무엘상 23 - 25","사무엘상 26 - 28","사무엘상 29 - 31","사무엘하 1 - 3","사무엘하 4 - 6","사무엘하 7 - 10","사무엘하 11 - 12","사무엘하 13 - 14","사무엘하 15 - 16","사무엘하 17 - 18","사무엘하 19 - 20","사무엘하 21 - 23","사무엘하 24 - 열왕기상 1","열왕기상 2","열왕기상 3 - 5","열왕기상 6 - 7","열왕기상 8 - 9","열왕기상 10 - 11","열왕기상 12 - 13","열왕기상 14 - 15","열왕기상 16 - 18","열왕기상 19 - 20","열왕기상 21 - 22","열왕기하 1 - 2","열왕기하 3 - 4","열왕기하 5 - 6","열왕기하 7 - 8","열왕기하 9 - 10","열왕기하 11 - 14","열왕기하 15 - 16","열왕기하 17 - 18","열왕기하 19 - 21","열왕기하 22 - 23","열왕기하 24 - 역대상 1","역대상 2 - 4","역대상 5 - 6","역대상 7 - 9","역대상 10 - 11","역대상 12 - 15","역대상 16 - 18","역대상 19 - 22","역대상 23 - 25","역대상 26 - 28","역대상 29 - 역대하 2","역대하 3 - 6","역대하 7 - 9","역대하 10 - 12","역대하 13 - 17","역대하 18 - 20","역대하 21 - 23","역대하 24 - 25","역대하 26 - 29","역대하 30 - 31","역대하 32 - 34","역대하 35 - 36","에스라 1 - 4","에스라 5 - 7","에스라 8 - 9","에스라 10 - 느헤미야 3","느헤미야 4 - 6","느헤미야 7 - 8","느헤미야 9 - 11","느헤미야 12 - 13","에스더 1 - 4","에스더 5 - 8","에스더 9 - 욥기 3","욥기 4 - 8","욥기 9 - 13","욥기 14 - 18","욥기 19 - 23","욥기 24 - 29","욥기 30 - 33","욥기 34 - 37","욥기 38 - 42","시편 1 - 8","시편 9 - 17","시편 18 - 22","시편 23 - 30","시편 31 - 36","시편 37 - 41","시편 42 - 49","시편 50 - 56","시편 57 - 64","시편 65 - 69","시편 70 - 74","시편 75 - 78","시편 79 - 86","시편 87 - 91","시편 92 - 101","시편 102 - 105","시편 106 - 108","시편 109 - 118","시편 119","시편 120 - 129","시편 130 - 139","시편 140 - 147","시편 148 - 잠언 3","잠언 4 - 8","잠언 9 - 12","잠언 13 - 16","잠언 17 - 20","잠언 21 - 24","잠언 25 - 28","잠언 29 - 전도서 1","전도서 2 - 6","전도서 7 - 10","전도서 11 - 아가 5","아가 6 - 이사야 1","이사야 2 - 6","이사야 7 - 9","이사야 10 - 13","이사야 14 - 19","이사야 20 - 23","이사야 24 - 27","이사야 28 - 30","이사야 31 - 35","이사야 36 - 37","이사야 38 - 41","이사야 42 - 44","이사야 45 - 47","이사야 48 - 51","이사야 52 - 55","이사야 56 - 59","이사야 60 - 63","이사야 64 - 예레미야 1","예레미야 2 - 3","예레미야 4 - 5","예레미야 6 - 8","예레미야 9 - 11","예레미야 12 - 14","예레미야 15 - 17","예레미야 18 - 21","예레미야 22 - 23","예레미야 24 - 26","예레미야 27 - 29","예레미야 30 - 31","예레미야 32 - 33","예레미야 34 - 36","예레미야 37 - 38","예레미야 39 - 42","예레미야 43 - 45","예레미야 46 - 48","예레미야 49 - 50","예레미야 51","예레미야 52 - 예레미야애가 2","예레미야애가 3 - 5","에스겔 1 - 4","에스겔 5 - 8","에스겔 9 - 12","에스겔 13 - 15","에스겔 16 - 17","에스겔 18 - 20","에스겔 21 - 22","에스겔 23 - 24","에스겔 25 - 27","에스겔 28 - 30","에스겔 31 - 32","에스겔 33 - 35","에스겔 36 - 37","에스겔 38 - 40","에스겔 41 - 43","에스겔 44 - 46","에스겔 47 - 48","다니엘 1 - 2","다니엘 3 - 4","다니엘 5 - 7","다니엘 8 - 9","다니엘 10 - 11","다니엘 12 - 호세아 5","호세아 6 - 10","호세아 11 - 요엘 1","요엘 2 - 아모스 2","아모스 3 - 7","아모스 8 - 요나 1","요나 2 - 미가 3","미가 4 - 나훔 1","나훔 2 - 하박국 2","하박국 3 - 스바냐 3","학개 1 - 스가랴 3","스가랴 4 - 8","스가랴 9 - 14","말라기 1 - 4"]};
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getFirestore, doc, setDoc, updateDoc, deleteField, FieldPath, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
 
 // Firebase 콘솔 > 프로젝트 설정 > 내 앱에서 복사한 값으로 바꾸세요.
 const firebaseConfig = {
@@ -113,20 +136,12 @@ const firebaseConfig = {
 
 const nowYear=new Date().getFullYear();
 let state={year:nowYear,plan:'ot',day:1,entries:[]};
-let db=null, applyingRemote=false;
-let editingId=null, editDraft='', shownDayKey='';
+let db=null;
+let editingId=null, editDraft='', shownDayKey='', lastKey='', initialJumpDone=false;
 const $=id=>document.getElementById(id);
 document.body.classList.toggle('is-mobile',/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
 const cloudDoc=()=>doc(db,'families','default');
 
-function getDeviceId(){
-  let id=localStorage.getItem('bibleReadingDeviceId');
-  if(!id){id=crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random();localStorage.setItem('bibleReadingDeviceId',id);}
-  return id;
-}
-function canEdit(e){
-  return true;
-}
 function getAuthor(){
   const a=localStorage.getItem('bibleReadingAuthor')||'';
   $('nameInput').classList.toggle('hide',!!a);
@@ -134,10 +149,31 @@ function getAuthor(){
   $('nameBtn').textContent=a?'이름 변경':'이름 입력';
   return a;
 }
-async function save(){
-  if(!db||applyingRemote)return true;
-  try{await setDoc(cloudDoc(),{state,updatedAt:serverTimestamp()},{merge:true});return true;}
+async function write(data){
+  if(!db)return true;
+  try{await setDoc(cloudDoc(),{...data,updatedAt:serverTimestamp()},{merge:true});return true;}
   catch(e){console.error(e);alert('저장하지 못했습니다. 인터넷 연결을 확인해 주세요.');return false;}
+}
+function writeRecords(list){return write({records:Object.fromEntries(list.map(r=>[r.id,r]))});}
+async function deleteRecord(id){
+  if(!db)return true;
+  try{await updateDoc(cloudDoc(),new FieldPath('records',id),deleteField());return true;}
+  catch(e){console.error(e);alert('삭제하지 못했습니다. 인터넷 연결을 확인해 주세요.');return false;}
+}
+const newId=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+function hashStr(s){let x=0;for(let i=0;i<s.length;i++)x=(x*31+s.charCodeAt(i))|0;return (x>>>0).toString(36);}
+function legacyToRecords(arr){
+  const m={};
+  (arr||[]).forEach(e=>{
+    if(!e||!e.author)return;
+    const id=e.id||`L_${e.year}_${e.plan}_${e.day}_${hashStr(e.author+'|'+(e.createdAt||0))}`;
+    m[id]={...e,id};
+  });
+  return m;
+}
+function nextDay(){
+  const days=state.entries.filter(e=>e.year===state.year&&e.plan===state.plan).map(e=>e.day);
+  return days.length?Math.min(Math.max(...days)+1,360):1;
 }
 function render(){
   try{localStorage.setItem('bibleReadingCache',JSON.stringify(state));}catch(e){}
@@ -146,7 +182,8 @@ function render(){
   $('passage').textContent=PLANS[state.plan][state.day-1];
   $('planLabel').textContent=`${state.year}년 · ${planName}`;
   $('progressBar').style.width=`${state.day/360*100}%`;
-  const mine=state.entries.find(e=>e.year===state.year&&e.plan===state.plan&&e.day===state.day&&e.author===getAuthor());
+  const author=getAuthor();
+  const mine=state.entries.find(e=>e.year===state.year&&e.plan===state.plan&&e.day===state.day&&e.author===author);
   $('readStatus').textContent=mine?'✓ 읽음':'';
   $('memoryPanel').classList.toggle('hide',!!mine);
   const dayKey=`${state.year}_${state.plan}_${state.day}`;
@@ -154,9 +191,49 @@ function render(){
   $('prevBtn').disabled=state.day===1; $('nextBtn').disabled=state.day===360;
   const count=new Set(state.entries.filter(e=>e.year===state.year&&e.plan===state.plan).map(e=>e.day)).size;
   $('readStats').textContent=`읽음 ${count}/360`;
-  $('yearSelect').value=state.year;
+  const ysel=$('yearSelect');
+  if(![...ysel.options].some(o=>Number(o.value)===state.year)){const o=document.createElement('option');o.value=state.year;o.textContent=`${state.year}년`;ysel.append(o);}
+  ysel.value=state.year;
   const r=document.querySelector(`input[name="plan"][value="${state.plan}"]`); if(r)r.checked=true;
   renderEntries();
+}
+function confirmDelete(){
+  return new Promise(res=>{
+    const m=$('delModal');
+    const done=v=>{m.classList.add('hide');$('delYes').onclick=$('delNo').onclick=m.onclick=null;res(v);};
+    $('delYes').onclick=()=>done(true);
+    $('delNo').onclick=()=>done(false);
+    m.onclick=ev=>{if(ev.target===m)done(false);};
+    m.classList.remove('hide');
+    $('delNo').focus();
+  });
+}
+function openNameModal(old,count,validate){
+  return new Promise(res=>{
+    const m=$('nameModal'),inp=$('nameModalInput'),row=$('nameModalRenameRow'),chk=$('nameModalRename'),err=$('nameModalError');
+    $('nameModalTitle').textContent=old?'이름 변경':'이름 입력';
+    inp.value=old; err.textContent='';
+    const showRename=!!(old&&count);
+    row.classList.toggle('hide',!showRename);
+    chk.checked=true;
+    $('nameModalRenameText').textContent=`이전에 쓴 기록 ${count}개의 이름도 함께 바꾸기`;
+    const clearErr=()=>{err.textContent='';};
+    inp.oninput=clearErr; chk.onchange=clearErr;
+    const close=v=>{m.classList.add('hide');$('nameYes').onclick=$('nameNo').onclick=m.onclick=m.onkeydown=inp.oninput=chk.onchange=null;res(v);};
+    const submit=()=>{
+      const name=inp.value.trim(); if(!name){inp.focus();return;}
+      const rename=showRename&&chk.checked;
+      const msg=validate?validate(name,rename):'';
+      if(msg){err.textContent=msg;return;}
+      close({name,rename});
+    };
+    $('nameYes').onclick=submit;
+    $('nameNo').onclick=()=>close(null);
+    m.onclick=ev=>{if(ev.target===m)close(null);};
+    m.onkeydown=ev=>{if(ev.key==='Escape')close(null);else if(ev.key==='Enter'&&ev.target===inp){ev.preventDefault();submit();}};
+    m.classList.remove('hide');
+    inp.focus();inp.select();
+  });
 }
 function renderEntries(){
   const list=$('entriesList'); list.innerHTML='';
@@ -165,7 +242,6 @@ function renderEntries(){
   $('entryCount').textContent=shown.length?`${shown.length}명`:'';
   if(!shown.length){list.innerHTML='<div class="empty">아직 기록이 없습니다.</div>';return;}
   shown.forEach(e=>{
-    if(!e.id)e.id=`${e.author}_${e.year}_${e.plan}_${e.day}`;
     const art=document.createElement('article');art.className='entry';
     const top=document.createElement('div');top.className='row between';
     const t=document.createElement('strong');t.textContent=e.author;
@@ -177,7 +253,7 @@ function renderEntries(){
       const ta=document.createElement('textarea');ta.maxLength=3000;ta.value=editDraft;ta.setAttribute('aria-label','말씀 수정');
       ta.oninput=()=>{editDraft=ta.value;};
       const ok=document.createElement('button');ok.className='primary small';ok.textContent='저장';
-      ok.onclick=async()=>{const t=editDraft.trim();if(!t)return;e.verseText=t;e.updatedAt=Date.now();editingId=null;render();await save();};
+      ok.onclick=async()=>{const v=editDraft.trim();if(!v)return;e.verseText=v;e.updatedAt=Date.now();editingId=null;render();await writeRecords([{id:e.id,verseText:v,updatedAt:e.updatedAt}]);};
       const no=document.createElement('button');no.className='secondary small';no.textContent='취소';
       no.onclick=()=>{editingId=null;renderEntries();};
       meta.append(ok,no);
@@ -185,13 +261,18 @@ function renderEntries(){
     }else{
       const v=document.createElement('div');v.className='verse';v.textContent=e.verseText;
       art.append(v);
-      if(canEdit(e)){
-        const b=document.createElement('button');b.className='secondary small';b.textContent='수정';
-        b.onclick=()=>{editingId=e.id;editDraft=e.verseText;renderEntries();};
-        const del=document.createElement('button');del.className='secondary small';del.textContent='삭제';
-        del.onclick=async()=>{state.entries=state.entries.filter(x=>x.id!==e.id);if(editingId===e.id)editingId=null;render();await save();};
-        meta.append(b,del);
-      }
+      const b=document.createElement('button');b.className='secondary small';b.textContent='수정';
+      b.onclick=()=>{editingId=e.id;editDraft=e.verseText;renderEntries();};
+      const del=document.createElement('button');del.className='secondary small';del.textContent='삭제';
+      del.onclick=async()=>{
+        if(!await confirmDelete())return;
+        const id=e.id;
+        state.entries=state.entries.filter(x=>x.id!==id);
+        if(editingId===id)editingId=null;
+        render();
+        await deleteRecord(id);
+      };
+      meta.append(b,del);
     }
     list.append(art);
   });
@@ -199,7 +280,7 @@ function renderEntries(){
 function initControls(){
   const ys=$('yearSelect');
   for(let y=nowYear-2;y<=nowYear+5;y++){const o=document.createElement('option');o.value=y;o.textContent=`${y}년`;ys.append(o);}
-  const go=async d=>{state.day=d;render();await save();};
+  const go=d=>{state.day=d;render();};
   $('prevBtn').onclick=()=>{if(state.day>1)go(state.day-1);};
   $('nextBtn').onclick=()=>{if(state.day<360)go(state.day+1);};
   $('jumpBtn').onclick=()=>{const d=Number($('jumpDay').value);if(!Number.isInteger(d)||d<1||d>360){alert('1~360 사이의 숫자를 입력해 주세요.');return;}$('jumpDay').value='';go(d);};
@@ -210,64 +291,92 @@ function initControls(){
     let author=getAuthor();
     if(!author){author=$('nameInput').value.trim();if(!author){alert('이름을 입력해 주세요.');$('nameInput').focus();return;}localStorage.setItem('bibleReadingAuthor',author);$('nameInput').value='';getAuthor();}
     if(state.entries.some(x=>x.year===state.year&&x.plan===state.plan&&x.day===state.day&&x.author===author)){render();return;}
-    state.entries.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),author,ownerId:getDeviceId(),verseText:text,year:state.year,plan:state.plan,day:state.day,createdAt:Date.now(),updatedAt:Date.now()});
-    if(await save()){$('verseText').value='';render();}
+    const entry={id:newId(),author,verseText:text,year:state.year,plan:state.plan,day:state.day,createdAt:Date.now(),updatedAt:Date.now()};
+    state.entries.push(entry);
+    $('verseText').value='';
+    render();
+    if(!await writeRecords([entry])){state.entries=state.entries.filter(x=>x.id!==entry.id);$('verseText').value=text;render();}
   };
-  $('startBtn').onclick=async()=>{const p=document.querySelector('input[name="plan"]:checked');if(!p)return;state.year=Number($('yearSelect').value);state.plan=p.value;state.day=1;render();await save();};
+  $('startBtn').onclick=async()=>{
+    const p=document.querySelector('input[name="plan"]:checked');if(!p)return;
+    state.year=Number($('yearSelect').value);state.plan=p.value;state.day=1;
+    lastKey=`${state.year}_${state.plan}`;
+    render();
+    await write({state:{year:state.year,plan:state.plan}});
+  };
   $('exportBtn').onclick=()=>{
     const q=v=>`"${String(v??'').replace(/"/g,'""')}"`;
     const rows=[['연도','순서','일차','읽을 범위','이름','기억나는 말씀','작성일']];
     state.entries.slice().sort((a,b)=>a.year-b.year||a.plan.localeCompare(b.plan)||a.day-b.day||(a.createdAt||0)-(b.createdAt||0))
       .forEach(e=>rows.push([e.year,e.plan==='ot'?'구약부터':'신약부터',e.day,PLANS[e.plan]?.[e.day-1]||'',e.author,e.verseText,new Date(e.createdAt||Date.now()).toLocaleDateString('ko-KR')]));
-    const csv='﻿'+rows.map(r=>r.map(q).join(',')).join('\r\n');
+    const csv='\uFEFF'+rows.map(r=>r.map(q).join(',')).join('\r\n');
     const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));
     const a=document.createElement('a');a.href=url;a.download=`성경읽기_기록_${new Date().toISOString().slice(0,10)}.csv`;a.click();URL.revokeObjectURL(url);
   };
   $('nameBtn').onclick=async()=>{
     const old=getAuthor();
-    const name=(prompt(old?'새 이름을 입력해 주세요.':'이름을 입력해 주세요.',old)||'').trim();
-    if(!name||name===old)return;
-    const mine=state.entries.filter(e=>e.author===old);
-    let rename=false;
-    if(old&&mine.length){
-      rename=confirm(`'${old}' 이름으로 저장된 기록 ${mine.length}개도 '${name}'(으)로 바꿀까요?\n\n· 확인: 이름을 고칩니다.\n· 취소: 이 기기의 사용자만 바꿉니다.`);
-    }
-    localStorage.setItem('bibleReadingAuthor',name);
-    if(rename){mine.forEach(e=>{e.author=name;e.updatedAt=Date.now();});render();await save();}
-    else render();
+    const mineNow=()=>state.entries.filter(e=>e.author===old);
+    const validate=(name,rename)=>{
+      if(!rename||name===old)return '';
+      const taken=new Set(state.entries.filter(e=>e.author===name).map(e=>`${e.year}_${e.plan}_${e.day}`));
+      const dup=mineNow().filter(e=>taken.has(`${e.year}_${e.plan}_${e.day}`));
+      if(!dup.length)return '';
+      const days=[...new Set(dup.map(e=>e.day))].sort((a,b)=>a-b);
+      const shownDays=days.slice(0,5).join(', ')+(days.length>5?' 외':'');
+      return `'${name}' 이름으로 이미 쓴 기록과 겹치는 일차가 있어(${shownDays}일차) 기록 이름을 바꿀 수 없습니다. 체크를 풀거나 다른 이름을 입력해 주세요.`;
+    };
+    const r=await openNameModal(old,mineNow().length,validate);
+    if(!r||r.name===old)return;
+    localStorage.setItem('bibleReadingAuthor',r.name);
+    getAuthor();
+    const mine=mineNow();
+    if(r.rename&&mine.length){
+      const now=Date.now();
+      mine.forEach(e=>{e.author=r.name;e.updatedAt=now;});
+      render();
+      await writeRecords(mine.map(e=>({id:e.id,author:r.name,updatedAt:now})));
+    }else render();
   };
   $('adminToggle').onclick=()=>{const p=$('adminPanel');p.classList.toggle('hide');const open=!p.classList.contains('hide');$('adminToggle').textContent=open?'닫기':'관리자';if(open)p.scrollIntoView({behavior:'smooth'});};
 }
-function jumpToNextAfterLastRead(){
-  const days=state.entries.filter(e=>e.year===state.year&&e.plan===state.plan).map(e=>e.day);
-  if(!days.length)return false;
-  const next=Math.min(Math.max(...days)+1,360);
-  if(next===state.day)return false;
-  state.day=next;
-  return true;
-}
-let initialJumpDone=false;
 function start(){
   initControls(); getAuthor();
   try{
     const c=JSON.parse(localStorage.getItem('bibleReadingCache')||'null');
-    if(c&&typeof c==='object'){state={...state,...c};if(!Array.isArray(state.entries))state.entries=[];jumpToNextAfterLastRead();}
+    if(c&&typeof c==='object'){
+      if(c.year)state.year=Number(c.year);
+      if(c.plan)state.plan=c.plan;
+      if(Array.isArray(c.entries))state.entries=Object.values(legacyToRecords(c.entries));
+    }
   }catch(e){}
+  lastKey=`${state.year}_${state.plan}`;
+  state.day=nextDay();
   render();
   if(firebaseConfig.apiKey==='YOUR_API_KEY'){$('appStatus').textContent='Firebase 설정 전이라 저장되지 않습니다.';return;}
   try{
     db=getFirestore(initializeApp(firebaseConfig));
     $('appStatus').textContent='동기화 중...';$('appStatus').classList.add('syncing');
     onSnapshot(cloudDoc(),snap=>{
-      applyingRemote=true;
-      const s=snap.exists()&&snap.data().state;
-      if(s){state={...state,...s};if(!Array.isArray(state.entries))state.entries=[];}
-      applyingRemote=false;
-      if(!snap.metadata.fromCache){$('appStatus').textContent='';$('appStatus').classList.remove('syncing');}
-      let changed=false;
-      if(!initialJumpDone&&s&&!snap.metadata.fromCache){initialJumpDone=true;changed=jumpToNextAfterLastRead();}
+      if(snap.metadata.fromCache)return;
+      $('appStatus').textContent='';$('appStatus').classList.remove('syncing');
+      const data=snap.exists()?snap.data():null;
+      if(!data){write({state:{year:state.year,plan:state.plan},migrated:true});render();return;}
+      const st=data.state||{};
+      if(st.year)state.year=Number(st.year);
+      if(st.plan)state.plan=st.plan;
+      let records=data.records||{};
+      if(!data.migrated){
+        const legacy=legacyToRecords(Array.isArray(st.entries)?st.entries:[]);
+        const add={};
+        Object.keys(legacy).forEach(k=>{if(!(k in records))add[k]=legacy[k];});
+        records={...add,...records};
+        write({records:add,migrated:true});
+      }
+      state.entries=Object.entries(records).filter(([k,v])=>v&&typeof v==='object').map(([k,v])=>({...v,id:k}));
+      const key=`${state.year}_${state.plan}`;
+      if(!initialJumpDone||key!==lastKey){state.day=nextDay();initialJumpDone=true;}
+      lastKey=key;
       render();
-      if(!snap.exists()||changed)save();
     },err=>{console.error(err);$('appStatus').textContent='불러오기 실패: '+err.message;render();});
   }catch(e){$('appStatus').textContent='연결 실패: '+e.message;render();}
 }
