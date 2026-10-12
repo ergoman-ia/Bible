@@ -225,19 +225,31 @@ function initControls(){
   };
   $('adminToggle').onclick=()=>{const p=$('adminPanel');p.classList.toggle('hide');const open=!p.classList.contains('hide');$('adminToggle').textContent=open?'닫기':'관리자';if(open)p.scrollIntoView({behavior:'smooth'});};
 }
+function jumpToNextAfterLastRead(){
+  const days=state.entries.filter(e=>e.year===state.year&&e.plan===state.plan).map(e=>e.day);
+  if(!days.length)return false;
+  const next=Math.min(Math.max(...days)+1,360);
+  if(next===state.day)return false;
+  state.day=next;
+  return true;
+}
+let initialJumpDone=false;
 function start(){
-  initControls(); getAuthor(); render();
-  if(firebaseConfig.apiKey==='YOUR_API_KEY'){$('appStatus').textContent='Firebase 설정 전이라 저장되지 않습니다.';return;}
+  initControls(); getAuthor();
+  if(firebaseConfig.apiKey==='YOUR_API_KEY'){render();$('appStatus').textContent='Firebase 설정 전이라 저장되지 않습니다.';return;}
   try{
     db=getFirestore(initializeApp(firebaseConfig));
     onSnapshot(cloudDoc(),snap=>{
       applyingRemote=true;
       const s=snap.exists()&&snap.data().state;
       if(s){state={...state,...s};if(!Array.isArray(state.entries))state.entries=[];}
-      applyingRemote=false; $('appStatus').textContent=''; render();
-      if(!snap.exists())save();
-    },err=>{console.error(err);$('appStatus').textContent='불러오기 실패: '+err.message;});
-  }catch(e){$('appStatus').textContent='연결 실패: '+e.message;}
+      applyingRemote=false; $('appStatus').textContent='';
+      let changed=false;
+      if(!initialJumpDone){initialJumpDone=true;changed=jumpToNextAfterLastRead();}
+      render();
+      if(!snap.exists()||changed)save();
+    },err=>{console.error(err);$('appStatus').textContent='불러오기 실패: '+err.message;render();});
+  }catch(e){$('appStatus').textContent='연결 실패: '+e.message;render();}
 }
 start();
 </script></body></html>
