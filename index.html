@@ -123,6 +123,14 @@ const $=id=>document.getElementById(id);
 document.body.classList.toggle('is-mobile',/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
 const cloudDoc=()=>doc(db,'families','default');
 
+function getDeviceId(){
+  let id=localStorage.getItem('bibleReadingDeviceId');
+  if(!id){id=crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random();localStorage.setItem('bibleReadingDeviceId',id);}
+  return id;
+}
+function canEdit(e){
+  return true;
+}
 function getAuthor(){
   const a=localStorage.getItem('bibleReadingAuthor')||'';
   $('nameInput').classList.toggle('hide',!!a);
@@ -198,7 +206,7 @@ function renderEntries(){
     }else{
       const v=document.createElement('div');v.className='verse';v.textContent=e.verseText;
       art.append(v);
-      if(e.author===getAuthor()){
+      if(canEdit(e)){
         const b=document.createElement('button');b.className='secondary small';b.textContent='수정';
         b.onclick=()=>{editingId=e.id;editDraft=e.verseText;renderEntries();};
         meta.append(b);
@@ -221,7 +229,7 @@ function initControls(){
     let author=getAuthor();
     if(!author){author=$('nameInput').value.trim();if(!author){alert('이름을 입력해 주세요.');$('nameInput').focus();return;}if(state.entries.some(x=>x.author===author)){alert(`'${author}' 이름은 이미 다른 가족이 사용 중이라 선택할 수 없습니다.`);$('nameInput').focus();return;}localStorage.setItem('bibleReadingAuthor',author);$('nameInput').value='';getAuthor();}
     if(state.entries.some(x=>x.year===state.year&&x.plan===state.plan&&x.day===state.day&&x.author===author)){render();return;}
-    state.entries.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),author,verseText:text,year:state.year,plan:state.plan,day:state.day,createdAt:Date.now(),updatedAt:Date.now()});
+    state.entries.push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()),author,ownerId:getDeviceId(),verseText:text,year:state.year,plan:state.plan,day:state.day,createdAt:Date.now(),updatedAt:Date.now()});
     if(await save()){$('verseText').value='';render();}
   };
   $('startBtn').onclick=async()=>{const p=document.querySelector('input[name="plan"]:checked');if(!p)return;state.year=Number($('yearSelect').value);state.plan=p.value;state.day=1;render();await save();};
