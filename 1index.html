@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="theme-color" content="#4a90e2">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>매일 성경 읽기</title>
+<style>
+:root{--navy:#17365d;--blue:#2869c7;--sky:#edf5ff;--ink:#233247;--muted:#65748a;--line:#dce5ef;--bg:#f4f7fb;--green:#247b59}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{margin:0;background:var(--bg);font-family:system-ui,-apple-system,"Malgun Gothic",sans-serif;color:var(--ink);line-height:1.6;overflow-wrap:anywhere}
+button,input,textarea,select{font:inherit;min-width:0}
+input,textarea,select{font-size:16px}
+button{cursor:pointer;border:0;border-radius:10px;padding:10px 16px;font-weight:700;min-height:44px;touch-action:manipulation}
+button:disabled{opacity:.4;cursor:default}
+.primary{background:var(--blue);color:#fff}.secondary{background:#eaf1fa;color:var(--navy)}
+.wrap{max-width:640px;margin:auto;padding:max(12px,env(safe-area-inset-top)) 12px max(24px,env(safe-area-inset-bottom))}
+h1{font-size:30px;line-height:1.3;color:var(--navy);margin:10px 0 14px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin-bottom:12px}
+.panel h2{font-size:17px;margin:0;color:var(--navy)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.between{justify-content:space-between}
+.muted{color:var(--muted);font-size:13px}
+.pill{background:var(--sky);color:var(--blue);padding:3px 10px;border-radius:999px;font-weight:800;font-size:14px}
+.passage{font-size:24px;font-weight:800;color:var(--navy);margin:8px 0 2px;word-break:keep-all;line-height:1.35}
+.progress{height:6px;background:#e8eef5;border-radius:99px;overflow:hidden;margin:12px 0}
+.progress div{height:100%;background:var(--blue);width:0;transition:width .2s}
+.nav{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.jump{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
+input,textarea,select{width:100%;padding:10px 12px;border:1px solid #ccd7e4;border-radius:10px;background:#fff;color:var(--ink)}
+textarea{min-height:100px;resize:vertical;margin-top:10px}
+.entries{display:grid;gap:8px;margin-top:10px}
+.entry{border:1px solid var(--line);border-radius:10px;padding:12px;background:#ffe4cc}
+.entry .verse{white-space:pre-wrap;margin:6px 0}
+.small{padding:6px 12px;min-height:36px;font-size:13px}
+.empty{padding:16px;text-align:center;color:var(--muted)}
+.admin{display:grid;grid-template-columns:auto 1fr;gap:10px 12px;align-items:center;margin-top:12px}
+.admin>span{font-size:14px;font-weight:700;color:var(--muted)}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.seg label{display:flex;justify-content:center;align-items:center;min-height:44px;border:1px solid var(--line);border-radius:10px;font-weight:700;color:var(--navy);cursor:pointer}
+.seg input{position:absolute;opacity:0;width:1px;height:1px}
+.seg input:checked+span{color:#fff}
+.seg label:has(input:checked){background:var(--navy);border-color:var(--navy)}
+.seg input:focus-visible+span{outline:2px solid var(--blue);outline-offset:4px}
+.yearrow{display:grid;grid-template-columns:1fr auto;gap:6px}
+.hide{display:none!important}
+.syncing{text-align:center;color:var(--green);font-weight:700}
+.modal{position:fixed;inset:0;background:rgba(23,54,93,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:100}
+.modal-box{background:#fff;border-radius:14px;padding:20px;width:100%;max-width:340px;box-shadow:0 10px 30px rgba(0,0,0,.25)}
+.modal-box p{margin:0 0 16px;font-weight:700;color:var(--navy);font-size:17px;text-align:center}
+.modal-box .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.danger{background:#d64545;color:#fff}
+#nameModal .btns{margin-top:16px}
+.chk{display:flex;gap:8px;align-items:flex-start;margin:12px 0 0;font-size:14px;color:var(--ink);cursor:pointer}
+.chk input{width:auto;margin-top:5px;flex:none}
+.modal-err{color:#d64545;font-size:13px;font-weight:700;margin-top:10px;line-height:1.5}
+.modal-err:empty{display:none}
+.is-mobile #adminToggle,.is-mobile #adminPanel{display:none!important}
+.foot{font-size:12px;color:var(--muted);text-align:center;padding:8px}
+</style></head><body><main class="wrap">
+<h1>📖 매일 성경 읽기</h1>
+<p class="muted" id="appStatus" role="status"></p>
+
+<section class="panel">
+ <div class="row between"><span class="row"><span class="pill" id="dayPill"></span><span class="muted" id="dayDate"></span></span><span class="muted" id="readStats"></span></div>
+ <div class="passage" id="passage"></div>
+ <div class="muted" id="planLabel"></div>
+ <div class="progress"><div id="progressBar"></div></div>
+ <div class="nav"><button class="secondary" id="prevBtn">← 이전</button><button class="primary" id="nextBtn">다음 →</button></div>
+ <div class="jump"><input id="jumpDay" type="number" inputmode="numeric" min="1" max="360" placeholder="일차 입력 (1~360)" aria-label="이동할 일차"><button class="secondary" id="jumpBtn">이동</button></div>
+</section>
+
+<section class="panel" id="memoryPanel">
+ <h2>기억나는 말씀</h2>
+ <form id="memoryForm">
+  <input id="nameInput" class="hide" maxlength="20" autocomplete="name" placeholder="이름 (처음 한 번만)" aria-label="이름" style="margin-top:10px">
+  <textarea id="verseText" maxlength="3000" aria-label="말씀 입력" placeholder="오늘 마음에 남은 구절을 적어 주세요." required></textarea>
+  <div class="row" style="margin-top:8px"><button class="primary" type="submit" id="saveMemoryBtn">저장</button></div>
+ </form>
+</section>
+
+<section class="panel">
+ <div class="row between"><h2 id="familyTitle">가족 기록</h2><span class="muted" id="entryCount"></span></div>
+ <div class="entries" id="entriesList"></div>
+</section>
+
+<section class="panel hide" id="adminPanel">
+ <h2>관리자</h2>
+ <div class="admin">
+  <span>순서</span>
+  <div class="seg">
+   <label><input type="radio" name="plan" value="ot"><span>구약부터</span></label>
+   <label><input type="radio" name="plan" value="nt"><span>신약부터</span></label>
+  </div>
+  <span>연도</span>
+  <div class="yearrow"><select id="yearSelect" aria-label="통독 연도"></select><button class="primary" id="startBtn">적용</button></div>
+  <span>기록</span>
+  <button class="secondary" id="exportBtn">엑셀로 내려받기</button>
+ </div>
+</section>
+
+<div class="row between"><span class="row"><span class="muted" id="authorLabel"></span><button class="secondary small" id="nameBtn" type="button">이름 입력</button><button class="secondary small" id="soundBtn" type="button"></button></span><button class="secondary small" id="adminToggle" type="button">관리자</button></div>
+<div class="foot">JONATHAN 성경 통독표(360일 1독, 개역개정판)_V2-1</div>
+</main>
+<div class="modal hide" id="delModal" role="dialog" aria-modal="true" aria-labelledby="delModalMsg">
+ <div class="modal-box"><p id="delModalMsg">정말 삭제할까요?</p>
+  <div class="btns"><button class="secondary" id="delNo" type="button">취소</button><button class="danger" id="delYes" type="button">삭제</button></div>
+ </div>
+</div>
+<div class="modal hide" id="nameModal" role="dialog" aria-modal="true" aria-labelledby="nameModalTitle">
+ <div class="modal-box"><p id="nameModalTitle">이름 변경</p>
+  <input id="nameModalInput" maxlength="20" autocomplete="off" placeholder="이름" aria-label="이름">
+  <label class="chk hide" id="nameModalRenameRow"><input type="checkbox" id="nameModalRename" checked><span id="nameModalRenameText"></span></label>
+  <div class="modal-err" id="nameModalError" role="alert"></div>
+  <div class="btns"><button class="secondary" id="nameNo" type="button">취소</button><button class="primary" id="nameYes" type="button">저장</button></div>
+ </div>
+</div>
+<script type="module">
+const PLANS = {"ot":["창세기 1 - 3","창세기 4 - 8","창세기 9 - 12","창세기 13 - 17","창세기 18 - 19","창세기 20 - 23","창세기 24","창세기 25 - 27","창세기 28 - 29","창세기 30 - 31","창세기 32 - 34","창세기 35 - 37","창세기 38 - 40","창세기 41 - 42","창세기 43 - 44","창세기 45 - 47","창세기 48 - 50","출애굽기 1 - 4","출애굽기 5 - 7","출애굽기 8 - 9","출애굽기 10 - 12","출애굽기 13 - 15","출애굽기 16 - 18","출애굽기 19 - 21","출애굽기 22 - 24","출애굽기 25 - 27","출애굽기 28 - 30","출애굽기 31 - 33","출애굽기 34 - 36","출애굽기 37 - 39","출애굽기 40 - 레위기 3","레위기 4 - 6","레위기 7 - 9","레위기 10 - 12","레위기 13 - 14","레위기 15 - 17","레위기 18 - 20","레위기 21 - 23","레위기 24 - 25","레위기 26 - 27","민수기 1 - 2","민수기 3 - 4","민수기 5 - 7","민수기 8 - 9","민수기 10 - 12","민수기 13 - 14","민수기 15 - 17","민수기 18 - 20","민수기 21 - 22","민수기 23 - 25","민수기 26 - 28","민수기 29 - 31","민수기 32 - 33","민수기 34 - 36","신명기 1 - 2","신명기 3 - 4","신명기 5 - 7","신명기 8 - 10","신명기 11 - 13","신명기 14 - 16","신명기 17 - 20","신명기 21 - 23","신명기 24 - 27","신명기 28","신명기 29 - 31","신명기 32 - 34","여호수아 1 - 3","여호수아 4 - 6","여호수아 7 - 8","여호수아 9 - 11","여호수아 12 - 14","여호수아 15 - 18","여호수아 19 - 21","여호수아 22 - 23","여호수아 24 - 사사기 1","사사기 2 - 4","사사기 5 - 6","사사기 7 - 8","사사기 9 - 10","사사기 11 - 13","사사기 14 - 16","사사기 17 - 18","사사기 19 - 20","사사기 21 - 룻기 2","룻기 3 - 사무엘상 1","사무엘상 2 - 4","사무엘상 5 - 8","사무엘상 9 - 11","사무엘상 12 - 13","사무엘상 14 - 15","사무엘상 16 - 17","사무엘상 18 - 20","사무엘상 21 - 22","사무엘상 23 - 25","사무엘상 26 - 28","사무엘상 29 - 31","사무엘하 1 - 3","사무엘하 4 - 6","사무엘하 7 - 10","사무엘하 11 - 12","사무엘하 13 - 14","사무엘하 15 - 16","사무엘하 17 - 18","사무엘하 19 - 20","사무엘하 21 - 23","사무엘하 24 - 열왕기상 1","열왕기상 2","열왕기상 3 - 5","열왕기상 6 - 7","열왕기상 8 - 9","열왕기상 10 - 11","열왕기상 12 - 13","열왕기상 14 - 15","열왕기상 16 - 18","열왕기상 19 - 20","열왕기상 21 - 22","열왕기하 1 - 2","열왕기하 3 - 4","열왕기하 5 - 6","열왕기하 7 - 8","열왕기하 9 - 10","열왕기하 11 - 14","열왕기하 15 - 16","열왕기하 17 - 18","열왕기하 19 - 21","열왕기하 22 - 23","열왕기하 24 - 역대상 1","역대상 2 - 4","역대상 5 - 6","역대상 7 - 9","역대상 10 - 11","역대상 12 - 15","역대상 16 - 18","역대상 19 - 22","역대상 23 - 25","역대상 26 - 28","역대상 29 - 역대하 2","역대하 3 - 6","역대하 7 - 9","역대하 10 - 12","역대하 13 - 17","역대하 18 - 20","역대하 21 - 23","역대하 24 - 25","역대하 26 - 29","역대하 30 - 31","역대하 32 - 34","역대하 35 - 36","에스라 1 - 4","에스라 5 - 7","에스라 8 - 9","에스라 10 - 느헤미야 3","느헤미야 4 - 6","느헤미야 7 - 8","느헤미야 9 - 11","느헤미야 12 - 13","에스더 1 - 4","에스더 5 - 8","에스더 9 - 욥기 3","욥기 4 - 8","욥기 9 - 13","욥기 14 - 18","욥기 19 - 23","욥기 24 - 29","욥기 30 - 33","욥기 34 - 37","욥기 38 - 42","시편 1 - 8","시편 9 - 17","시편 18 - 22","시편 23 - 30","시편 31 - 36","시편 37 - 41","시편 42 - 49","시편 50 - 56","시편 57 - 64","시편 65 - 69","시편 70 - 74","시편 75 - 78","시편 79 - 86","시편 87 - 91","시편 92 - 101","시편 102 - 105","시편 106 - 108","시편 109 - 118","시편 119","시편 120 - 129","시편 130 - 139","시편 140 - 147","시편 148 - 잠언 3","잠언 4 - 8","잠언 9 - 12","잠언 13 - 16","잠언 17 - 20","잠언 21 - 24","잠언 25 - 28","잠언 29 - 전도서 1","전도서 2 - 6","전도서 7 - 10","전도서 11 - 아가 5","아가 6 - 이사야 1","이사야 2 - 6","이사야 7 - 9","이사야 10 - 13","이사야 14 - 19","이사야 20 - 23","이사야 24 - 27","이사야 28 - 30","이사야 31 - 35","이사야 36 - 37","이사야 38 - 41","이사야 42 - 44","이사야 45 - 47","이사야 48 - 51","이사야 52 - 55","이사야 56 - 59","이사야 60 - 63","이사야 64 - 예레미야 1","예레미야 2 - 3","예레미야 4 - 5","예레미야 6 - 8","예레미야 9 - 11","예레미야 12 - 14","예레미야 15 - 17","예레미야 18 - 21","예레미야 22 - 23","예레미야 24 - 26","예레미야 27 - 29","예레미야 30 - 31","예레미야 32 - 33","예레미야 34 - 36","예레미야 37 - 38","예레미야 39 - 42","예레미야 43 - 45","예레미야 46 - 48","예레미야 49 - 50","예레미야 51","예레미야 52 - 예레미야애가 2","예레미야애가 3 - 5","에스겔 1 - 4","에스겔 5 - 8","에스겔 9 - 12","에스겔 13 - 15","에스겔 16 - 17","에스겔 18 - 20","에스겔 21 - 22","에스겔 23 - 24","에스겔 25 - 27","에스겔 28 - 30","에스겔 31 - 32","에스겔 33 - 35","에스겔 36 - 37","에스겔 38 - 40","에스겔 41 - 43","에스겔 44 - 46","에스겔 47 - 48","다니엘 1 - 2","다니엘 3 - 4","다니엘 5 - 7","다니엘 8 - 9","다니엘 10 - 11","다니엘 12 - 호세아 5","호세아 6 - 10","호세아 11 - 요엘 1","요엘 2 - 아모스 2","아모스 3 - 7","아모스 8 - 요나 1","요나 2 - 미가 3","미가 4 - 나훔 1","나훔 2 - 하박국 2","하박국 3 - 스바냐 3","학개 1 - 스가랴 3","스가랴 4 - 8","스가랴 9 - 14","말라기 1 - 4","마태복음 1 - 4","마태복음 5 - 6","마태복음 7 - 9","마태복음 10 - 11","마태복음 12 - 14","마태복음 15 - 17","마태복음 18 - 20","마태복음 21 - 22","마태복음 23 - 24","마태복음 25 - 26","마태복음 27 - 28","마가복음 1 - 3","마가복음 4 - 5","마가복음 6 - 8","마가복음 9 - 10","마가복음 11 - 12","마가복음 13 - 14","마가복음 15 - 16","누가복음 1 - 2","누가복음 3 - 5","누가복음 6 - 7","누가복음 8","누가복음 9 - 10","누가복음 11 - 12","누가복음 13 - 14","누가복음 15 - 17","누가복음 18 - 19","누가복음 20 - 22","누가복음 23 - 24","요한복음 1 - 2","요한복음 3 - 4","요한복음 5 - 6","요한복음 7 - 8","요한복음 9 - 10","요한복음 11 - 12","요한복음 13 - 15","요한복음 16 - 17","요한복음 18 - 20","요한복음 21 - 사도행전 1","사도행전 2 - 4","사도행전 5 - 7","사도행전 8 - 9","사도행전 10 - 12","사도행전 13 - 15","사도행전 16 - 17","사도행전 18 - 19","사도행전 20 - 22","사도행전 23 - 25","사도행전 26 - 27","사도행전 28 - 로마서 2","로마서 3 - 6","로마서 7 - 9","로마서 10 - 12","로마서 13 - 16","고린도전서 1 - 4","고린도전서 5 - 7","고린도전서 8 - 11","고린도전서 12 - 14","고린도전서 15 - 고린도후서 1","고린도후서 2 - 5","고린도후서 6 - 10","고린도후서 11 - 13","갈라디아서 1 - 4","갈라디아서 5 - 에베소서 2","에베소서 3 - 6","빌립보서 1 - 4","골로새서 1 - 4","데살로니가전서 1 - 5","데살로니가후서 1 - 디모데전서 2","디모데전서 3 - 디모데후서 1","디모데후서 2 - 디도서 2","디도서 3 - 히브리서 3","히브리서 4 - 7","히브리서 8 - 10","히브리서 11 - 13","야고보서 1 - 5","베드로전서 1 - 4","베드로전서 5 - 베드로후서 3","요한일서 1 - 4","요한일서 5 - 유다서 1","요한계시록 1 - 4","요한계시록 5 - 9","요한계시록 10 - 14","요한계시록 15 - 18","요한계시록 19 - 22"],"nt":["마태복음 1 - 4","마태복음 5 - 6","마태복음 7 - 9","마태복음 10 - 11","마태복음 12 - 14","마태복음 15 - 17","마태복음 18 - 20","마태복음 21 - 22","마태복음 23 - 24","마태복음 25 - 26","마태복음 27 - 28","마가복음 1 - 3","마가복음 4 - 5","마가복음 6 - 8","마가복음 9 - 10","마가복음 11 - 12","마가복음 13 - 14","마가복음 15 - 16","누가복음 1 - 2","누가복음 3 - 5","누가복음 6 - 7","누가복음 8","누가복음 9 - 10","누가복음 11 - 12","누가복음 13 - 14","누가복음 15 - 17","누가복음 18 - 19","누가복음 20 - 22","누가복음 23 - 24","요한복음 1 - 2","요한복음 3 - 4","요한복음 5 - 6","요한복음 7 - 8","요한복음 9 - 10","요한복음 11 - 12","요한복음 13 - 15","요한복음 16 - 17","요한복음 18 - 20","요한복음 21 - 사도행전 1","사도행전 2 - 4","사도행전 5 - 7","사도행전 8 - 9","사도행전 10 - 12","사도행전 13 - 15","사도행전 16 - 17","사도행전 18 - 19","사도행전 20 - 22","사도행전 23 - 25","사도행전 26 - 27","사도행전 28 - 로마서 2","로마서 3 - 6","로마서 7 - 9","로마서 10 - 12","로마서 13 - 16","고린도전서 1 - 4","고린도전서 5 - 7","고린도전서 8 - 11","고린도전서 12 - 14","고린도전서 15 - 고린도후서 1","고린도후서 2 - 5","고린도후서 6 - 10","고린도후서 11 - 13","갈라디아서 1 - 4","갈라디아서 5 - 에베소서 2","에베소서 3 - 6","빌립보서 1 - 4","골로새서 1 - 4","데살로니가전서 1 - 5","데살로니가후서 1 - 디모데전서 2","디모데전서 3 - 디모데후서 1","디모데후서 2 - 디도서 2","디도서 3 - 히브리서 3","히브리서 4 - 7","히브리서 8 - 10","히브리서 11 - 13","야고보서 1 - 5","베드로전서 1 - 4","베드로전서 5 - 베드로후서 3","요한일서 1 - 4","요한일서 5 - 유다서 1","요한계시록 1 - 4","요한계시록 5 - 9","요한계시록 10 - 14","요한계시록 15 - 18","요한계시록 19 - 22","창세기 1 - 3","창세기 4 - 8","창세기 9 - 12","창세기 13 - 17","창세기 18 - 19","창세기 20 - 23","창세기 24","창세기 25 - 27","창세기 28 - 29","창세기 30 - 31","창세기 32 - 34","창세기 35 - 37","창세기 38 - 40","창세기 41 - 42","창세기 43 - 44","창세기 45 - 47","창세기 48 - 50","출애굽기 1 - 4","출애굽기 5 - 7","출애굽기 8 - 9","출애굽기 10 - 12","출애굽기 13 - 15","출애굽기 16 - 18","출애굽기 19 - 21","출애굽기 22 - 24","출애굽기 25 - 27","출애굽기 28 - 30","출애굽기 31 - 33","출애굽기 34 - 36","출애굽기 37 - 39","출애굽기 40 - 레위기 3","레위기 4 - 6","레위기 7 - 9","레위기 10 - 12","레위기 13 - 14","레위기 15 - 17","레위기 18 - 20","레위기 21 - 23","레위기 24 - 25","레위기 26 - 27","민수기 1 - 2","민수기 3 - 4","민수기 5 - 7","민수기 8 - 9","민수기 10 - 12","민수기 13 - 14","민수기 15 - 17","민수기 18 - 20","민수기 21 - 22","민수기 23 - 25","민수기 26 - 28","민수기 29 - 31","민수기 32 - 33","민수기 34 - 36","신명기 1 - 2","신명기 3 - 4","신명기 5 - 7","신명기 8 - 10","신명기 11 - 13","신명기 14 - 16","신명기 17 - 20","신명기 21 - 23","신명기 24 - 27","신명기 28","신명기 29 - 31","신명기 32 - 34","여호수아 1 - 3","여호수아 4 - 6","여호수아 7 - 8","여호수아 9 - 11","여호수아 12 - 14","여호수아 15 - 18","여호수아 19 - 21","여호수아 22 - 23","여호수아 24 - 사사기 1","사사기 2 - 4","사사기 5 - 6","사사기 7 - 8","사사기 9 - 10","사사기 11 - 13","사사기 14 - 16","사사기 17 - 18","사사기 19 - 20","사사기 21 - 룻기 2","룻기 3 - 사무엘상 1","사무엘상 2 - 4","사무엘상 5 - 8","사무엘상 9 - 11","사무엘상 12 - 13","사무엘상 14 - 15","사무엘상 16 - 17","사무엘상 18 - 20","사무엘상 21 - 22","사무엘상 23 - 25","사무엘상 26 - 28","사무엘상 29 - 31","사무엘하 1 - 3","사무엘하 4 - 6","사무엘하 7 - 10","사무엘하 11 - 12","사무엘하 13 - 14","사무엘하 15 - 16","사무엘하 17 - 18","사무엘하 19 - 20","사무엘하 21 - 23","사무엘하 24 - 열왕기상 1","열왕기상 2","열왕기상 3 - 5","열왕기상 6 - 7","열왕기상 8 - 9","열왕기상 10 - 11","열왕기상 12 - 13","열왕기상 14 - 15","열왕기상 16 - 18","열왕기상 19 - 20","열왕기상 21 - 22","열왕기하 1 - 2","열왕기하 3 - 4","열왕기하 5 - 6","열왕기하 7 - 8","열왕기하 9 - 10","열왕기하 11 - 14","열왕기하 15 - 16","열왕기하 17 - 18","열왕기하 19 - 21","열왕기하 22 - 23","열왕기하 24 - 역대상 1","역대상 2 - 4","역대상 5 - 6","역대상 7 - 9","역대상 10 - 11","역대상 12 - 15","역대상 16 - 18","역대상 19 - 22","역대상 23 - 25","역대상 26 - 28","역대상 29 - 역대하 2","역대하 3 - 6","역대하 7 - 9","역대하 10 - 12","역대하 13 - 17","역대하 18 - 20","역대하 21 - 23","역대하 24 - 25","역대하 26 - 29","역대하 30 - 31","역대하 32 - 34","역대하 35 - 36","에스라 1 - 4","에스라 5 - 7","에스라 8 - 9","에스라 10 - 느헤미야 3","느헤미야 4 - 6","느헤미야 7 - 8","느헤미야 9 - 11","느헤미야 12 - 13","에스더 1 - 4","에스더 5 - 8","에스더 9 - 욥기 3","욥기 4 - 8","욥기 9 - 13","욥기 14 - 18","욥기 19 - 23","욥기 24 - 29","욥기 30 - 33","욥기 34 - 37","욥기 38 - 42","시편 1 - 8","시편 9 - 17","시편 18 - 22","시편 23 - 30","시편 31 - 36","시편 37 - 41","시편 42 - 49","시편 50 - 56","시편 57 - 64","시편 65 - 69","시편 70 - 74","시편 75 - 78","시편 79 - 86","시편 87 - 91","시편 92 - 101","시편 102 - 105","시편 106 - 108","시편 109 - 118","시편 119","시편 120 - 129","시편 130 - 139","시편 140 - 147","시편 148 - 잠언 3","잠언 4 - 8","잠언 9 - 12","잠언 13 - 16","잠언 17 - 20","잠언 21 - 24","잠언 25 - 28","잠언 29 - 전도서 1","전도서 2 - 6","전도서 7 - 10","전도서 11 - 아가 5","아가 6 - 이사야 1","이사야 2 - 6","이사야 7 - 9","이사야 10 - 13","이사야 14 - 19","이사야 20 - 23","이사야 24 - 27","이사야 28 - 30","이사야 31 - 35","이사야 36 - 37","이사야 38 - 41","이사야 42 - 44","이사야 45 - 47","이사야 48 - 51","이사야 52 - 55","이사야 56 - 59","이사야 60 - 63","이사야 64 - 예레미야 1","예레미야 2 - 3","예레미야 4 - 5","예레미야 6 - 8","예레미야 9 - 11","예레미야 12 - 14","예레미야 15 - 17","예레미야 18 - 21","예레미야 22 - 23","예레미야 24 - 26","예레미야 27 - 29","예레미야 30 - 31","예레미야 32 - 33","예레미야 34 - 36","예레미야 37 - 38","예레미야 39 - 42","예레미야 43 - 45","예레미야 46 - 48","예레미야 49 - 50","예레미야 51","예레미야 52 - 예레미야애가 2","예레미야애가 3 - 5","에스겔 1 - 4","에스겔 5 - 8","에스겔 9 - 12","에스겔 13 - 15","에스겔 16 - 17","에스겔 18 - 20","에스겔 21 - 22","에스겔 23 - 24","에스겔 25 - 27","에스겔 28 - 30","에스겔 31 - 32","에스겔 33 - 35","에스겔 36 - 37","에스겔 38 - 40","에스겔 41 - 43","에스겔 44 - 46","에스겔 47 - 48","다니엘 1 - 2","다니엘 3 - 4","다니엘 5 - 7","다니엘 8 - 9","다니엘 10 - 11","다니엘 12 - 호세아 5","호세아 6 - 10","호세아 11 - 요엘 1","요엘 2 - 아모스 2","아모스 3 - 7","아모스 8 - 요나 1","요나 2 - 미가 3","미가 4 - 나훔 1","나훔 2 - 하박국 2","하박국 3 - 스바냐 3","학개 1 - 스가랴 3","스가랴 4 - 8","스가랴 9 - 14","말라기 1 - 4"]};
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getFirestore, doc, setDoc, updateDoc, deleteField, FieldPath, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+// Firebase 콘솔 > 프로젝트 설정 > 내 앱에서 복사한 값으로 바꾸세요.
+const firebaseConfig = {
+  apiKey: "AIzaSyDzN7ubZao_UvbvVUq89qdxSWAwyS9n_rw",
+  authDomain: "bible-c6a9a.firebaseapp.com",
+  projectId: "bible-c6a9a",
+  storageBucket: "bible-c6a9a.firebasestorage.app",
+  messagingSenderId: "891504143426",
+  appId: "1:891504143426:web:ec4d4e06755380ce7f91db"
+};
+
+const nowYear=new Date().getFullYear();
+let state={year:nowYear,plan:'ot',day:1,entries:[]};
+let db=null;
+let editingId=null, editDraft='', shownDayKey='', lastKey='', initialJumpDone=false;
+const $=id=>document.getElementById(id);
+document.body.classList.toggle('is-mobile',/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
+const cloudDoc=()=>doc(db,'families','default');
+
+function getAuthor(){
+  const a=localStorage.getItem('bibleReadingAuthor')||'';
+  $('nameInput').classList.toggle('hide',!!a);
+  $('authorLabel').textContent=a?'작성자: '+a:'';
+  $('nameBtn').textContent=a?'이름 변경':'이름 입력';
+  return a;
+}
+async function write(data){
+  if(!db)return true;
+  try{await setDoc(cloudDoc(),{...data,updatedAt:serverTimestamp()},{merge:true});return true;}
+  catch(e){console.error(e);alert('저장하지 못했습니다. 인터넷 연결을 확인해 주세요.');return false;}
+}
+function writeRecords(list){return write({records:Object.fromEntries(list.map(r=>[r.id,r]))});}
+async function deleteRecord(id){
+  if(!db)return true;
+  try{await updateDoc(cloudDoc(),new FieldPath('records',id),deleteField());return true;}
+  catch(e){console.error(e);alert('삭제하지 못했습니다. 인터넷 연결을 확인해 주세요.');return false;}
+}
+const newId=()=>crypto.randomUUID?crypto.randomUUID():Date.now().toString(36)+Math.random().toString(36).slice(2);
+function hashStr(s){let x=0;for(let i=0;i<s.length;i++)x=(x*31+s.charCodeAt(i))|0;return (x>>>0).toString(36);}
+function legacyToRecords(arr){
+  const m={};
+  (arr||[]).forEach(e=>{
+    if(!e||!e.author)return;
+    const id=e.id||`L_${e.year}_${e.plan}_${e.day}_${hashStr(e.author+'|'+(e.createdAt||0))}`;
+    m[id]={...e,id};
+  });
+  return m;
+}
+// 1일차 = 그 해 1월 1일, 이후 하루씩
+function dayDateText(year,day){
+  const d=new Date(year,0,day);
+  return `${d.getMonth()+1}월 ${d.getDate()}일(${'일월화수목금토'[d.getDay()]})`;
+}
+// 오늘 날짜의 일차 (1일차 = 1월 1일)
+function dayLimit(){
+  const now=new Date(),cy=now.getFullYear();
+  if(state.year<cy)return 360;
+  if(state.year>cy)return 1;
+  const doy=Math.round((new Date(cy,now.getMonth(),now.getDate())-new Date(cy,0,1))/86400000)+1;
+  return Math.min(Math.max(doy,1),360);
+}
+// 앱을 열 때 보여줄 일차: 올해는 오늘, 지난 해는 마지막으로 읽은 다음 날
+function startDay(){
+  const lim=dayLimit();
+  return state.year===new Date().getFullYear()?lim:Math.min(nextDay(),lim);
+}
+let curLimit=0;
+function checkNewDay(){
+  const lim=dayLimit();
+  if(lim===curLimit)return;
+  const wasToday=state.day===curLimit;
+  curLimit=lim;
+  if(wasToday)state.day=lim;
+  render();
+}
+function nextDay(){
+  const days=state.entries.filter(e=>e.year===state.year&&e.plan===state.plan).map(e=>e.day);
+  return days.length?Math.min(Math.max(...days)+1,360):1;
+}
+function render(){
+  try{localStorage.setItem('bibleReadingCache',JSON.stringify(state));}catch(e){}
+  const planName=state.plan==='ot'?'구약부터':'신약부터';
+  $('dayPill').textContent=`${state.day}일차`;
+  $('dayDate').textContent=dayDateText(state.year,state.day);
+  $('passage').textContent=PLANS[state.plan][state.day-1];
+  $('planLabel').textContent=`${state.year}년 · ${planName}`;
+  $('progressBar').style.width=`${state.day/360*100}%`;
+  const author=getAuthor();
+  const mine=state.entries.find(e=>e.year===state.year&&e.plan===state.plan&&e.day===state.day&&e.author===author);
+  $('memoryPanel').classList.toggle('hide',!!mine);
+  const dayKey=`${state.year}_${state.plan}_${state.day}`;
+  if(dayKey!==shownDayKey){$('verseText').value='';shownDayKey=dayKey;}
+  $('prevBtn').disabled=state.day===1; $('nextBtn').disabled=state.day===360;
+  const count=new Set(state.entries.filter(e=>e.year===state.year&&e.plan===state.plan).map(e=>e.day)).size;
+  $('readStats').textContent=`읽음 ${count}/360`;
+  const ysel=$('yearSelect');
+  if(![...ysel.options].some(o=>Number(o.value)===state.year)){const o=document.createElement('option');o.value=state.year;o.textContent=`${state.year}년`;ysel.append(o);}
+  ysel.value=state.year;
+  const r=document.querySelector(`input[name="plan"][value="${state.plan}"]`); if(r)r.checked=true;
+  renderEntries();
+}
+function confirmDelete(){
+  return new Promise(res=>{
+    const m=$('delModal');
+    const done=v=>{m.classList.add('hide');$('delYes').onclick=$('delNo').onclick=m.onclick=null;res(v);};
+    $('delYes').onclick=()=>done(true);
+    $('delNo').onclick=()=>done(false);
+    m.onclick=ev=>{if(ev.target===m)done(false);};
+    m.classList.remove('hide');
+    $('delNo').focus();
+  });
+}
+function openNameModal(old,count,validate){
+  return new Promise(res=>{
+    const m=$('nameModal'),inp=$('nameModalInput'),row=$('nameModalRenameRow'),chk=$('nameModalRename'),err=$('nameModalError');
+    $('nameModalTitle').textContent=old?'이름 변경':'이름 입력';
+    inp.value=old; err.textContent='';
+    const showRename=!!(old&&count);
+    row.classList.toggle('hide',!showRename);
+    chk.checked=true;
+    $('nameModalRenameText').textContent=`이전에 쓴 기록 ${count}개의 이름도 함께 바꾸기`;
+    const clearErr=()=>{err.textContent='';};
+    inp.oninput=clearErr; chk.onchange=clearErr;
+    const close=v=>{m.classList.add('hide');$('nameYes').onclick=$('nameNo').onclick=m.onclick=m.onkeydown=inp.oninput=chk.onchange=null;res(v);};
+    const submit=()=>{
+      const name=inp.value.trim(); if(!name){inp.focus();return;}
+      const rename=showRename&&chk.checked;
+      const msg=validate?validate(name,rename):'';
+      if(msg){err.textContent=msg;return;}
+      close({name,rename});
+    };
+    $('nameYes').onclick=submit;
+    $('nameNo').onclick=()=>close(null);
+    m.onclick=ev=>{if(ev.target===m)close(null);};
+    m.onkeydown=ev=>{if(ev.key==='Escape')close(null);else if(ev.key==='Enter'&&ev.target===inp){ev.preventDefault();submit();}};
+    m.classList.remove('hide');
+    inp.focus();inp.select();
+  });
+}
+function renderEntries(){
+  const list=$('entriesList'); list.innerHTML='';
+  $('familyTitle').textContent=`${state.day}일차 가족 기록`;
+  const shown=state.entries.filter(e=>e.year===state.year&&e.plan===state.plan&&e.day===state.day).sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  $('entryCount').textContent=shown.length?`${shown.length}명`:'';
+  if(!shown.length){list.innerHTML='<div class="empty">아직 기록이 없습니다.</div>';return;}
+  shown.forEach(e=>{
+    const art=document.createElement('article');art.className='entry';
+    const top=document.createElement('div');top.className='row between';
+    const t=document.createElement('strong');t.textContent=e.author;
+    const d=document.createElement('span');d.className='muted';d.textContent=new Date(e.createdAt||Date.now()).toLocaleDateString('ko-KR');
+    const meta=document.createElement('div');meta.className='row';meta.style.gap='8px';meta.append(d);
+    top.append(t,meta);
+    art.append(top);
+    if(e.id===editingId){
+      const ta=document.createElement('textarea');ta.maxLength=3000;ta.value=editDraft;ta.setAttribute('aria-label','말씀 수정');
+      ta.oninput=()=>{editDraft=ta.value;};
+      const ok=document.createElement('button');ok.className='primary small';ok.textContent='저장';
+      ok.onclick=async()=>{const v=editDraft.trim();if(!v)return;e.verseText=v;e.updatedAt=Date.now();editingId=null;render();await writeRecords([{id:e.id,verseText:v,updatedAt:e.updatedAt}]);};
+      const no=document.createElement('button');no.className='secondary small';no.textContent='취소';
+      no.onclick=()=>{editingId=null;renderEntries();};
+      meta.append(ok,no);
+      art.append(ta);
+    }else{
+      const v=document.createElement('div');v.className='verse';v.textContent=e.verseText;
+      art.append(v);
+      const b=document.createElement('button');b.className='secondary small';b.textContent='수정';
+      b.onclick=()=>{editingId=e.id;editDraft=e.verseText;renderEntries();};
+      const del=document.createElement('button');del.className='secondary small';del.textContent='삭제';
+      del.onclick=async()=>{
+        if(!await confirmDelete())return;
+        const id=e.id;
+        state.entries=state.entries.filter(x=>x.id!==id);
+        if(editingId===id)editingId=null;
+        render();
+        await deleteRecord(id);
+      };
+      meta.append(b,del);
+    }
+    list.append(art);
+  });
+}
+// ---- 엑셀(.xlsx) 만들기: 외부 라이브러리 없이 직접 생성 ----
+const xmlEsc=s=>String(s??'').replace(/[\x00-\x08\x0B\x0C\x0E-\x1F]/g,'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const colName=i=>{let s='';i++;while(i>0){const m=(i-1)%26;s=String.fromCharCode(65+m)+s;i=Math.floor((i-1)/26);}return s;};
+const CRC_TABLE=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(buf){let c=0xFFFFFFFF;for(let i=0;i<buf.length;i++)c=CRC_TABLE[(c^buf[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function makeZip(files){
+  const enc=new TextEncoder(),parts=[],central=[];let offset=0;
+  files.forEach(f=>{
+    const name=enc.encode(f.name),data=enc.encode(f.text),crc=crc32(data);
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(8,0,true);
+    lh.setUint16(10,0,true);lh.setUint16(12,33,true);lh.setUint32(14,crc,true);lh.setUint32(18,data.length,true);
+    lh.setUint32(22,data.length,true);lh.setUint16(26,name.length,true);lh.setUint16(28,0,true);
+    parts.push(new Uint8Array(lh.buffer),name,data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint16(10,0,true);
+    ch.setUint16(12,0,true);ch.setUint16(14,33,true);ch.setUint32(16,crc,true);ch.setUint32(20,data.length,true);
+    ch.setUint32(24,data.length,true);ch.setUint16(28,name.length,true);ch.setUint32(42,offset,true);
+    central.push(new Uint8Array(ch.buffer),name);
+    offset+=30+name.length+data.length;
+  });
+  const cdSize=central.reduce((a,b)=>a+b.length,0);
+  const end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true);end.setUint16(8,files.length,true);end.setUint16(10,files.length,true);
+  end.setUint32(12,cdSize,true);end.setUint32(16,offset,true);
+  const all=[...parts,...central,new Uint8Array(end.buffer)];
+  const out=new Uint8Array(all.reduce((a,b)=>a+b.length,0));let p=0;all.forEach(b=>{out.set(b,p);p+=b.length;});
+  return out;
+}
+// 연도별 시트: 행 = 일차(1~360), 열 = 등록자, 칸 = 그 사람이 쓴 기록
+function buildXlsx(entries){
+  const years=[...new Set(entries.map(e=>e.year))].sort((a,b)=>a-b);
+  const sheets=[];
+  years.forEach(y=>{
+    const ofYear=entries.filter(e=>e.year===y);
+    {
+      const plan=ofYear.reduce((a,b)=>(b.createdAt||0)>=(a.createdAt||0)?b:a).plan;
+      const list=ofYear;
+      const first={};list.forEach(e=>{const t=e.createdAt||0;if(!(e.author in first)||t<first[e.author])first[e.author]=t;});
+      const authors=Object.keys(first).sort((a,b)=>first[a]-first[b]||a.localeCompare(b,'ko'));
+      const cell={};
+      list.forEach(e=>{const k=`${e.day}|${e.author}`;cell[k]=cell[k]?cell[k]+'\n\n'+e.verseText:e.verseText;});
+      const rows=[];
+      const hdr=['일차','읽을 범위',...authors].map((v,i)=>`<c r="${colName(i)}1" s="1" t="inlineStr"><is><t>${xmlEsc(v)}</t></is></c>`).join('');
+      rows.push(`<row r="1">${hdr}</row>`);
+      for(let d=1;d<=360;d++){
+        const r=d+1;
+        let c=`<c r="A${r}" s="2"><v>${d}</v></c><c r="B${r}" s="3" t="inlineStr"><is><t>${xmlEsc(PLANS[plan]?.[d-1]||'')}</t></is></c>`;
+        authors.forEach((a,i)=>{const v=cell[`${d}|${a}`];if(v!==undefined)c+=`<c r="${colName(i+2)}${r}" s="0" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(v)}</t></is></c>`;});
+        rows.push(`<row r="${r}">${c}</row>`);
+      }
+      const cols=`<col min="1" max="1" width="7" customWidth="1"/><col min="2" max="2" width="24" customWidth="1"/>`+(authors.length?`<col min="3" max="${2+authors.length}" width="42" customWidth="1"/>`:'');
+      const xml=`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView workbookViewId="0"><pane xSplit="2" ySplit="1" topLeftCell="C2" activePane="bottomRight" state="frozen"/></sheetView></sheetViews><sheetFormatPr defaultRowHeight="15"/><cols>${cols}</cols><sheetData>${rows.join('')}</sheetData></worksheet>`;
+      sheets.push({name:`${y}년`,xml});
+    }
+  });
+  const n=sheets.length;
+  const files=[
+   {name:'[Content_Types].xml',text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${sheets.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join('')}</Types>`},
+   {name:'_rels/.rels',text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`},
+   {name:'xl/workbook.xml',text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((s,i)=>`<sheet name="${xmlEsc(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join('')}</sheets></workbook>`},
+   {name:'xl/_rels/workbook.xml.rels',text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join('')}<Relationship Id="rId${n+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`},
+   {name:'xl/styles.xml',text:`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Malgun Gothic"/></font><font><b/><sz val="11"/><name val="Malgun Gothic"/></font></fonts><fills count="3"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill><fill><patternFill patternType="solid"><fgColor rgb="FFEDF5FF"/><bgColor indexed="64"/></patternFill></fill></fills><borders count="2"><border><left/><right/><top/><bottom/><diagonal/></border><border><left style="thin"><color rgb="FFDCE5EF"/></left><right style="thin"><color rgb="FFDCE5EF"/></right><top style="thin"><color rgb="FFDCE5EF"/></top><bottom style="thin"><color rgb="FFDCE5EF"/></bottom><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf><xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment horizontal="center" vertical="top"/></xf><xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1"><alignment vertical="top" wrapText="1"/></xf></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`},
+   ...sheets.map((s,i)=>({name:`xl/worksheets/sheet${i+1}.xml`,text:s.xml}))
+  ];
+  return makeZip(files);
+}
+// ---- 새 기록 알림음 (앱이 열려 있을 때만) ----
+let audioCtx=null;
+const soundOn=()=>localStorage.getItem('bibleReadingSound')!=='off';
+function unlockAudio(){
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+    if(!audioCtx)audioCtx=new AC();
+    if(audioCtx.state==='suspended')audioCtx.resume();
+  }catch(e){}
+}
+function playChime(){
+  if(!soundOn())return;
+  try{if(navigator.vibrate)navigator.vibrate([120,60,120]);}catch(e){}
+  try{
+    unlockAudio();if(!audioCtx||audioCtx.state!=='running')return;
+    const t0=audioCtx.currentTime;
+    [[880,0],[1175,0.16]].forEach(([f,dt])=>{
+      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.type='sine';o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t0+dt);
+      g.gain.exponentialRampToValueAtTime(0.25,t0+dt+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+dt+0.28);
+      o.connect(g);g.connect(audioCtx.destination);
+      o.start(t0+dt);o.stop(t0+dt+0.3);
+    });
+  }catch(e){}
+}
+function refreshSoundBtn(){$('soundBtn').textContent=soundOn()?'🔔 알림음 켬':'🔕 알림음 끔';}
+function initControls(){
+  ['pointerdown','keydown','touchend'].forEach(ev=>document.addEventListener(ev,unlockAudio,{passive:true}));
+  refreshSoundBtn();
+  $('soundBtn').onclick=()=>{
+    localStorage.setItem('bibleReadingSound',soundOn()?'off':'on');
+    refreshSoundBtn();
+    if(soundOn())playChime();
+  };
+  const ys=$('yearSelect');
+  for(let y=nowYear-2;y<=nowYear+5;y++){const o=document.createElement('option');o.value=y;o.textContent=`${y}년`;ys.append(o);}
+  const go=d=>{state.day=d;render();};
+  $('prevBtn').onclick=()=>{if(state.day>1)go(state.day-1);};
+  $('nextBtn').onclick=()=>{if(state.day<360)go(state.day+1);};
+  $('jumpBtn').onclick=()=>{const d=Number($('jumpDay').value);if(!Number.isInteger(d)||d<1||d>360){alert('1~360 사이의 숫자를 입력해 주세요.');return;}$('jumpDay').value='';go(d);};
+  $('jumpDay').addEventListener('keydown',e=>{if(e.key==='Enter')$('jumpBtn').click();});
+  $('memoryForm').onsubmit=async e=>{
+    e.preventDefault();
+    const text=$('verseText').value.trim(); if(!text)return;
+    let author=getAuthor();
+    if(!author){author=$('nameInput').value.trim();if(!author){alert('이름을 입력해 주세요.');$('nameInput').focus();return;}localStorage.setItem('bibleReadingAuthor',author);$('nameInput').value='';getAuthor();}
+    if(state.entries.some(x=>x.year===state.year&&x.plan===state.plan&&x.day===state.day&&x.author===author)){render();return;}
+    const entry={id:newId(),author,verseText:text,year:state.year,plan:state.plan,day:state.day,createdAt:Date.now(),updatedAt:Date.now()};
+    state.entries.push(entry);
+    $('verseText').value='';
+    render();
+    if(!await writeRecords([entry])){state.entries=state.entries.filter(x=>x.id!==entry.id);$('verseText').value=text;render();}
+  };
+  $('startBtn').onclick=async()=>{
+    const p=document.querySelector('input[name="plan"]:checked');if(!p)return;
+    state.year=Number($('yearSelect').value);state.plan=p.value;state.day=startDay();curLimit=dayLimit();
+    lastKey=`${state.year}_${state.plan}`;
+    render();
+    await write({state:{year:state.year,plan:state.plan}});
+  };
+  $('exportBtn').onclick=()=>{
+    if(!state.entries.length){alert('내려받을 기록이 없습니다.');return;}
+    const bytes=buildXlsx(state.entries);
+    const url=URL.createObjectURL(new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}));
+    const a=document.createElement('a');a.href=url;a.download=`성경읽기_기록_${new Date().toISOString().slice(0,10)}.xlsx`;a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  };
+  $('nameBtn').onclick=async()=>{
+    const old=getAuthor();
+    const mineNow=()=>state.entries.filter(e=>e.author===old);
+    const validate=(name,rename)=>{
+      if(!rename||name===old)return '';
+      const taken=new Set(state.entries.filter(e=>e.author===name).map(e=>`${e.year}_${e.plan}_${e.day}`));
+      const dup=mineNow().filter(e=>taken.has(`${e.year}_${e.plan}_${e.day}`));
+      if(!dup.length)return '';
+      const days=[...new Set(dup.map(e=>e.day))].sort((a,b)=>a-b);
+      const shownDays=days.slice(0,5).join(', ')+(days.length>5?' 외':'');
+      return `'${name}' 이름으로 이미 쓴 기록과 겹치는 일차가 있어(${shownDays}일차) 기록 이름을 바꿀 수 없습니다. 체크를 풀거나 다른 이름을 입력해 주세요.`;
+    };
+    const r=await openNameModal(old,mineNow().length,validate);
+    if(!r||r.name===old)return;
+    localStorage.setItem('bibleReadingAuthor',r.name);
+    getAuthor();
+    const mine=mineNow();
+    if(r.rename&&mine.length){
+      const now=Date.now();
+      mine.forEach(e=>{e.author=r.name;e.updatedAt=now;});
+      render();
+      await writeRecords(mine.map(e=>({id:e.id,author:r.name,updatedAt:now})));
+    }else render();
+  };
+  $('adminToggle').onclick=()=>{const p=$('adminPanel');p.classList.toggle('hide');const open=!p.classList.contains('hide');$('adminToggle').textContent=open?'닫기':'관리자';if(open)p.scrollIntoView({behavior:'smooth'});};
+}
+function start(){
+  initControls(); getAuthor();
+  try{
+    const c=JSON.parse(localStorage.getItem('bibleReadingCache')||'null');
+    if(c&&typeof c==='object'){
+      if(c.year)state.year=Number(c.year);
+      if(c.plan)state.plan=c.plan;
+      if(Array.isArray(c.entries))state.entries=Object.values(legacyToRecords(c.entries));
+    }
+  }catch(e){}
+  lastKey=`${state.year}_${state.plan}`;
+  state.day=startDay();curLimit=dayLimit();
+  render();
+  if(firebaseConfig.apiKey==='YOUR_API_KEY'){$('appStatus').textContent='Firebase 설정 전이라 저장되지 않습니다.';return;}
+  try{
+    db=getFirestore(initializeApp(firebaseConfig));
+    $('appStatus').textContent='동기화 중...';$('appStatus').classList.add('syncing');
+    onSnapshot(cloudDoc(),snap=>{
+      if(snap.metadata.fromCache)return;
+      $('appStatus').textContent='';$('appStatus').classList.remove('syncing');
+      const data=snap.exists()?snap.data():null;
+      if(!data){write({state:{year:state.year,plan:state.plan},migrated:true});render();return;}
+      const st=data.state||{};
+      if(st.year)state.year=Number(st.year);
+      if(st.plan)state.plan=st.plan;
+      let records=data.records||{};
+      if(!data.migrated){
+        const legacy=legacyToRecords(Array.isArray(st.entries)?st.entries:[]);
+        const add={};
+        Object.keys(legacy).forEach(k=>{if(!(k in records))add[k]=legacy[k];});
+        records={...add,...records};
+        write({records:add,migrated:true});
+      }
+      const incoming=Object.entries(records).filter(([k,v])=>v&&typeof v==='object').map(([k,v])=>({...v,id:k}));
+      if(initialJumpDone){
+        const known=new Set(state.entries.map(e=>e.id)),me=getAuthor();
+        if(incoming.some(e=>!known.has(e.id)&&e.author!==me))playChime();
+      }
+      state.entries=incoming;
+      const key=`${state.year}_${state.plan}`;
+      if(!initialJumpDone||key!==lastKey){state.day=startDay();curLimit=dayLimit();initialJumpDone=true;}
+      lastKey=key;
+      render();
+    },err=>{console.error(err);$('appStatus').textContent='불러오기 실패: '+err.message;render();});
+  }catch(e){$('appStatus').textContent='연결 실패: '+e.message;render();}
+}
+start();
+setInterval(checkNewDay,60000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)checkNewDay();});
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
+</script></body></html>
