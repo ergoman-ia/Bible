@@ -32,7 +32,6 @@ h1{font-size:30px;line-height:1.3;color:var(--navy);margin:10px 0 14px}
 .jump{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
 input,textarea,select{width:100%;padding:10px 12px;border:1px solid #ccd7e4;border-radius:10px;background:#fff;color:var(--ink)}
 textarea{min-height:100px;resize:vertical;margin-top:10px}
-.done{color:var(--green);font-weight:700}
 .entries{display:grid;gap:8px;margin-top:10px}
 .entry{border:1px solid var(--line);border-radius:10px;padding:12px;background:#ffe4cc}
 .entry .verse{white-space:pre-wrap;margin:6px 0}
@@ -66,7 +65,7 @@ textarea{min-height:100px;resize:vertical;margin-top:10px}
 <p class="muted" id="appStatus" role="status"></p>
 
 <section class="panel">
- <div class="row between"><span class="row"><span class="pill" id="dayPill"></span><span class="muted" id="dayDate"></span><span class="done" id="readStatus"></span></span><span class="muted" id="readStats"></span></div>
+ <div class="row between"><span class="row"><span class="pill" id="dayPill"></span><span class="muted" id="dayDate"></span></span><span class="muted" id="readStats"></span></div>
  <div class="passage" id="passage"></div>
  <div class="muted" id="planLabel"></div>
  <div class="progress"><div id="progressBar"></div></div>
@@ -190,7 +189,6 @@ function render(){
   $('progressBar').style.width=`${state.day/360*100}%`;
   const author=getAuthor();
   const mine=state.entries.find(e=>e.year===state.year&&e.plan===state.plan&&e.day===state.day&&e.author===author);
-  $('readStatus').textContent=mine?'✓ 읽음':'';
   $('memoryPanel').classList.toggle('hide',!!mine);
   const dayKey=`${state.year}_${state.plan}_${state.day}`;
   if(dayKey!==shownDayKey){$('verseText').value='';shownDayKey=dayKey;}
