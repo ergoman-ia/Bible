@@ -103,7 +103,7 @@ textarea{min-height:100px;resize:vertical;margin-top:10px}
 </section>
 
 <div class="row between"><span class="row"><span class="muted" id="authorLabel"></span><button class="secondary small" id="nameBtn" type="button">이름 입력</button><button class="secondary small" id="soundBtn" type="button"></button></span><button class="secondary small" id="adminToggle" type="button">관리자</button></div>
-<div class="foot">JONATHAN 성경 통독표(360일 1독, 개역개정판)_V2</div>
+<div class="foot">JONATHAN 성경 통독표(360일 1독, 개역개정판)_V2-1</div>
 </main>
 <div class="modal hide" id="delModal" role="dialog" aria-modal="true" aria-labelledby="delModalMsg">
  <div class="modal-box"><p id="delModalMsg">정말 삭제할까요?</p>
@@ -175,7 +175,7 @@ function dayDateText(year,day){
   const d=new Date(year,0,day);
   return `${d.getMonth()+1}월 ${d.getDate()}일(${'일월화수목금토'[d.getDay()]})`;
 }
-// 오늘 날짜까지만 볼 수 있는 마지막 일차 (1일차 = 1월 1일)
+// 오늘 날짜의 일차 (1일차 = 1월 1일)
 function dayLimit(){
   const now=new Date(),cy=now.getFullYear();
   if(state.year<cy)return 360;
@@ -194,7 +194,7 @@ function checkNewDay(){
   if(lim===curLimit)return;
   const wasToday=state.day===curLimit;
   curLimit=lim;
-  if(wasToday||state.day>lim)state.day=lim;
+  if(wasToday)state.day=lim;
   render();
 }
 function nextDay(){
@@ -214,7 +214,7 @@ function render(){
   $('memoryPanel').classList.toggle('hide',!!mine);
   const dayKey=`${state.year}_${state.plan}_${state.day}`;
   if(dayKey!==shownDayKey){$('verseText').value='';shownDayKey=dayKey;}
-  $('prevBtn').disabled=state.day===1; $('nextBtn').disabled=state.day>=dayLimit();
+  $('prevBtn').disabled=state.day===1; $('nextBtn').disabled=state.day===360;
   const count=new Set(state.entries.filter(e=>e.year===state.year&&e.plan===state.plan).map(e=>e.day)).size;
   $('readStats').textContent=`읽음 ${count}/360`;
   const ysel=$('yearSelect');
@@ -410,8 +410,8 @@ function initControls(){
   for(let y=nowYear-2;y<=nowYear+5;y++){const o=document.createElement('option');o.value=y;o.textContent=`${y}년`;ys.append(o);}
   const go=d=>{state.day=d;render();};
   $('prevBtn').onclick=()=>{if(state.day>1)go(state.day-1);};
-  $('nextBtn').onclick=()=>{if(state.day<dayLimit())go(state.day+1);};
-  $('jumpBtn').onclick=()=>{const d=Number($('jumpDay').value),lim=dayLimit();if(!Number.isInteger(d)||d<1||d>360){alert('1~360 사이의 숫자를 입력해 주세요.');return;}if(d>lim){alert(`오늘(${lim}일차)까지만 볼 수 있습니다.`);return;}$('jumpDay').value='';go(d);};
+  $('nextBtn').onclick=()=>{if(state.day<360)go(state.day+1);};
+  $('jumpBtn').onclick=()=>{const d=Number($('jumpDay').value);if(!Number.isInteger(d)||d<1||d>360){alert('1~360 사이의 숫자를 입력해 주세요.');return;}$('jumpDay').value='';go(d);};
   $('jumpDay').addEventListener('keydown',e=>{if(e.key==='Enter')$('jumpBtn').click();});
   $('memoryForm').onsubmit=async e=>{
     e.preventDefault();
