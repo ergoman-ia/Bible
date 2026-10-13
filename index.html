@@ -490,4 +490,5 @@ function start(){
   }catch(e){$('appStatus').textContent='연결 실패: '+e.message;render();}
 }
 start();
+if('serviceWorker' in navigator){window.addEventListener('load',()=>{navigator.serviceWorker.register('sw.js').catch(()=>{});});}
 </script></body></html>
