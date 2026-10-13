@@ -103,7 +103,7 @@ textarea{min-height:100px;resize:vertical;margin-top:10px}
  </div>
 </section>
 
-<div class="row between"><span class="row"><span class="muted" id="authorLabel"></span><button class="secondary small" id="nameBtn" type="button">이름 입력</button></span><button class="secondary small" id="adminToggle" type="button">관리자</button></div>
+<div class="row between"><span class="row"><span class="muted" id="authorLabel"></span><button class="secondary small" id="nameBtn" type="button">이름 입력</button><button class="secondary small" id="soundBtn" type="button"></button></span><button class="secondary small" id="adminToggle" type="button">관리자</button></div>
 <div class="foot">통독표: JONATHAN 성경 통독표(360일 1독, 개역개정판)</div>
 </main>
 <div class="modal hide" id="delModal" role="dialog" aria-modal="true" aria-labelledby="delModalMsg">
@@ -344,7 +344,42 @@ function buildXlsx(entries){
   ];
   return makeZip(files);
 }
+// ---- 새 기록 알림음 (앱이 열려 있을 때만) ----
+let audioCtx=null;
+const soundOn=()=>localStorage.getItem('bibleReadingSound')!=='off';
+function unlockAudio(){
+  try{
+    const AC=window.AudioContext||window.webkitAudioContext;if(!AC)return;
+    if(!audioCtx)audioCtx=new AC();
+    if(audioCtx.state==='suspended')audioCtx.resume();
+  }catch(e){}
+}
+function playChime(){
+  if(!soundOn())return;
+  try{if(navigator.vibrate)navigator.vibrate([120,60,120]);}catch(e){}
+  try{
+    unlockAudio();if(!audioCtx||audioCtx.state!=='running')return;
+    const t0=audioCtx.currentTime;
+    [[880,0],[1175,0.16]].forEach(([f,dt])=>{
+      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
+      o.type='sine';o.frequency.value=f;
+      g.gain.setValueAtTime(0.0001,t0+dt);
+      g.gain.exponentialRampToValueAtTime(0.25,t0+dt+0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001,t0+dt+0.28);
+      o.connect(g);g.connect(audioCtx.destination);
+      o.start(t0+dt);o.stop(t0+dt+0.3);
+    });
+  }catch(e){}
+}
+function refreshSoundBtn(){$('soundBtn').textContent=soundOn()?'🔔 알림음 켬':'🔕 알림음 끔';}
 function initControls(){
+  ['pointerdown','keydown','touchend'].forEach(ev=>document.addEventListener(ev,unlockAudio,{passive:true}));
+  refreshSoundBtn();
+  $('soundBtn').onclick=()=>{
+    localStorage.setItem('bibleReadingSound',soundOn()?'off':'on');
+    refreshSoundBtn();
+    if(soundOn())playChime();
+  };
   const ys=$('yearSelect');
   for(let y=nowYear-2;y<=nowYear+5;y++){const o=document.createElement('option');o.value=y;o.textContent=`${y}년`;ys.append(o);}
   const go=d=>{state.day=d;render();};
@@ -437,7 +472,12 @@ function start(){
         records={...add,...records};
         write({records:add,migrated:true});
       }
-      state.entries=Object.entries(records).filter(([k,v])=>v&&typeof v==='object').map(([k,v])=>({...v,id:k}));
+      const incoming=Object.entries(records).filter(([k,v])=>v&&typeof v==='object').map(([k,v])=>({...v,id:k}));
+      if(initialJumpDone){
+        const known=new Set(state.entries.map(e=>e.id)),me=getAuthor();
+        if(incoming.some(e=>!known.has(e.id)&&e.author!==me))playChime();
+      }
+      state.entries=incoming;
       const key=`${state.year}_${state.plan}`;
       if(!initialJumpDone||key!==lastKey){state.day=nextDay();initialJumpDone=true;}
       lastKey=key;
