@@ -66,7 +66,7 @@ textarea{min-height:100px;resize:vertical;margin-top:10px}
 <p class="muted" id="appStatus" role="status"></p>
 
 <section class="panel">
- <div class="row between"><span class="row"><span class="pill" id="dayPill"></span><span class="done" id="readStatus"></span></span><span class="muted" id="readStats"></span></div>
+ <div class="row between"><span class="row"><span class="pill" id="dayPill"></span><span class="muted" id="dayDate"></span><span class="done" id="readStatus"></span></span><span class="muted" id="readStats"></span></div>
  <div class="passage" id="passage"></div>
  <div class="muted" id="planLabel"></div>
  <div class="progress"><div id="progressBar"></div></div>
@@ -171,6 +171,11 @@ function legacyToRecords(arr){
   });
   return m;
 }
+// 1일차 = 그 해 1월 1일, 이후 하루씩
+function dayDateText(year,day){
+  const d=new Date(year,0,day);
+  return `${d.getMonth()+1}월 ${d.getDate()}일(${'일월화수목금토'[d.getDay()]})`;
+}
 function nextDay(){
   const days=state.entries.filter(e=>e.year===state.year&&e.plan===state.plan).map(e=>e.day);
   return days.length?Math.min(Math.max(...days)+1,360):1;
@@ -179,6 +184,7 @@ function render(){
   try{localStorage.setItem('bibleReadingCache',JSON.stringify(state));}catch(e){}
   const planName=state.plan==='ot'?'구약부터':'신약부터';
   $('dayPill').textContent=`${state.day}일차`;
+  $('dayDate').textContent=dayDateText(state.year,state.day);
   $('passage').textContent=PLANS[state.plan][state.day-1];
   $('planLabel').textContent=`${state.year}년 · ${planName}`;
   $('progressBar').style.width=`${state.day/360*100}%`;
