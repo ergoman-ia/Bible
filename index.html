@@ -103,7 +103,7 @@ textarea{min-height:100px;resize:vertical;margin-top:10px}
 </section>
 
 <div class="row between"><span class="row"><span class="muted" id="authorLabel"></span><button class="secondary small" id="nameBtn" type="button">이름 입력</button><button class="secondary small" id="soundBtn" type="button"></button></span><button class="secondary small" id="adminToggle" type="button">관리자</button></div>
-<div class="foot">JONATHAN 성경 통독표(360일 1독, 개역개정판)_V3</div>
+<div class="foot">JONATHAN 성경 통독표(360일 1독, 개역개정판)_V4</div>
 </main>
 <div class="modal hide" id="delModal" role="dialog" aria-modal="true" aria-labelledby="delModalMsg">
  <div class="modal-box"><p id="delModalMsg">정말 삭제할까요?</p>
@@ -266,6 +266,8 @@ function openNameModal(old,count,validate){
     inp.focus();inp.select();
   });
 }
+const isAdminMode=()=>!$('adminPanel').classList.contains('hide');
+const canManage=e=>e.author===getAuthor()||isAdminMode();
 function renderEntries(){
   const list=$('entriesList'); list.innerHTML='';
   $('familyTitle').textContent=`${state.day}일차 가족 기록`;
@@ -280,7 +282,7 @@ function renderEntries(){
     const meta=document.createElement('div');meta.className='row';meta.style.gap='8px';meta.append(d);
     top.append(t,meta);
     art.append(top);
-    if(e.id===editingId){
+    if(e.id===editingId&&canManage(e)){
       const ta=document.createElement('textarea');ta.maxLength=3000;ta.value=editDraft;ta.setAttribute('aria-label','말씀 수정');
       ta.oninput=()=>{editDraft=ta.value;};
       const ok=document.createElement('button');ok.className='primary small';ok.textContent='저장';
@@ -292,6 +294,7 @@ function renderEntries(){
     }else{
       const v=document.createElement('div');v.className='verse';v.textContent=e.verseText;
       art.append(v);
+      if(canManage(e)){
       const b=document.createElement('button');b.className='secondary small';b.textContent='수정';
       b.onclick=()=>{editingId=e.id;editDraft=e.verseText;renderEntries();};
       const del=document.createElement('button');del.className='secondary small';del.textContent='삭제';
@@ -304,6 +307,7 @@ function renderEntries(){
         await deleteRecord(id);
       };
       meta.append(b,del);
+      }
     }
     list.append(art);
   });
@@ -478,7 +482,7 @@ function initControls(){
       await writeRecords(mine.map(e=>({id:e.id,author:r.name,updatedAt:now})));
     }else render();
   };
-  $('adminToggle').onclick=()=>{const p=$('adminPanel');p.classList.toggle('hide');const open=!p.classList.contains('hide');$('adminToggle').textContent=open?'닫기':'관리자';if(open)p.scrollIntoView({behavior:'smooth'});};
+  $('adminToggle').onclick=()=>{const p=$('adminPanel');p.classList.toggle('hide');const open=!p.classList.contains('hide');$('adminToggle').textContent=open?'닫기':'관리자';if(editingId&&!state.entries.some(x=>x.id===editingId&&canManage(x)))editingId=null;renderEntries();if(open)p.scrollIntoView({behavior:'smooth'});};
 }
 function start(){
   initControls(); getAuthor();
