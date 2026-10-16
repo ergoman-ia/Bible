@@ -29,7 +29,9 @@ h1{font-size:30px;line-height:1.3;color:var(--navy);margin:10px 0 14px}
 .progress{height:6px;background:#e8eef5;border-radius:99px;overflow:hidden;margin:12px 0}
 .progress div{height:100%;background:var(--blue);width:0;transition:width .2s}
 .nav{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.jump{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:10px}
+.datepick{position:relative;display:inline-block;color:var(--blue);font-size:13px;text-decoration:underline dotted;text-underline-offset:3px;cursor:pointer}
+.datepick::before{content:'📅 ';text-decoration:none;display:inline-block}
+.datepick input{position:absolute;inset:0;width:100%;height:100%;opacity:0;padding:0;border:0;margin:0;cursor:pointer;font-size:16px}
 input,textarea,select{width:100%;padding:10px 12px;border:1px solid #ccd7e4;border-radius:10px;background:#fff;color:var(--ink)}
 textarea{min-height:100px;resize:vertical;margin-top:10px}
 .entries{display:grid;gap:8px;margin-top:10px}
@@ -65,20 +67,18 @@ textarea{min-height:100px;resize:vertical;margin-top:10px}
 <p class="muted" id="appStatus" role="status"></p>
 
 <section class="panel">
- <div class="row between"><span class="row"><span class="pill" id="dayPill"></span><span class="muted" id="dayDate"></span></span><span class="muted" id="readStats"></span></div>
+ <div class="row between"><span class="row"><span class="pill" id="dayPill"></span><label class="datepick" id="datePick"><span id="dayDate"></span><input type="date" id="dayDateInput" aria-label="날짜를 선택하면 해당 일차로 이동합니다"></label></span><span class="muted" id="readStats"></span></div>
  <div class="passage" id="passage"></div>
  <div class="muted" id="planLabel"></div>
  <div class="progress"><div id="progressBar"></div></div>
  <div class="nav"><button class="secondary" id="prevBtn">← 이전</button><button class="primary" id="nextBtn">다음 →</button></div>
- <div class="jump"><input id="jumpDay" type="number" inputmode="numeric" min="1" max="360" placeholder="일차 입력 (1~360)" aria-label="이동할 일차"><button class="secondary" id="jumpBtn">이동</button></div>
-</section>
+ </section>
 
 <section class="panel" id="memoryPanel">
- <h2>기억나는 말씀</h2>
+ <div class="row between"><h2>기억나는 말씀</h2><button class="primary small" type="submit" form="memoryForm" id="saveMemoryBtn">저장</button></div>
  <form id="memoryForm">
   <input id="nameInput" class="hide" maxlength="20" autocomplete="name" placeholder="이름 (처음 한 번만)" aria-label="이름" style="margin-top:10px">
   <textarea id="verseText" maxlength="3000" aria-label="말씀 입력" placeholder="오늘 마음에 남은 구절을 적어 주세요." required></textarea>
-  <div class="row" style="margin-top:8px"><button class="primary" type="submit" id="saveMemoryBtn">저장</button></div>
  </form>
 </section>
 
@@ -103,7 +103,7 @@ textarea{min-height:100px;resize:vertical;margin-top:10px}
 </section>
 
 <div class="row between"><span class="row"><span class="muted" id="authorLabel"></span><button class="secondary small" id="nameBtn" type="button">이름 입력</button><button class="secondary small" id="soundBtn" type="button"></button></span><button class="secondary small" id="adminToggle" type="button">관리자</button></div>
-<div class="foot">JONATHAN 성경 통독표(360일 1독, 개역개정판)_V2-1</div>
+<div class="foot">JONATHAN 성경 통독표(360일 1독, 개역개정판)_V3</div>
 </main>
 <div class="modal hide" id="delModal" role="dialog" aria-modal="true" aria-labelledby="delModalMsg">
  <div class="modal-box"><p id="delModalMsg">정말 삭제할까요?</p>
@@ -171,6 +171,10 @@ function legacyToRecords(arr){
   return m;
 }
 // 1일차 = 그 해 1월 1일, 이후 하루씩
+function ymd(year,day){
+  const d=new Date(year,0,day);
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 function dayDateText(year,day){
   const d=new Date(year,0,day);
   return `${d.getMonth()+1}월 ${d.getDate()}일(${'일월화수목금토'[d.getDay()]})`;
@@ -206,6 +210,7 @@ function render(){
   const planName=state.plan==='ot'?'구약부터':'신약부터';
   $('dayPill').textContent=`${state.day}일차`;
   $('dayDate').textContent=dayDateText(state.year,state.day);
+  $('dayDateInput').min=ymd(state.year,1);$('dayDateInput').max=ymd(state.year,360);$('dayDateInput').value=ymd(state.year,state.day);
   $('passage').textContent=PLANS[state.plan][state.day-1];
   $('planLabel').textContent=`${state.year}년 · ${planName}`;
   $('progressBar').style.width=`${state.day/360*100}%`;
@@ -411,8 +416,18 @@ function initControls(){
   const go=d=>{state.day=d;render();};
   $('prevBtn').onclick=()=>{if(state.day>1)go(state.day-1);};
   $('nextBtn').onclick=()=>{if(state.day<360)go(state.day+1);};
-  $('jumpBtn').onclick=()=>{const d=Number($('jumpDay').value);if(!Number.isInteger(d)||d<1||d>360){alert('1~360 사이의 숫자를 입력해 주세요.');return;}$('jumpDay').value='';go(d);};
-  $('jumpDay').addEventListener('keydown',e=>{if(e.key==='Enter')$('jumpBtn').click();});
+  const di=$('dayDateInput');
+  di.addEventListener('click',()=>{try{if(di.showPicker)di.showPicker();}catch(e){}});
+  di.onchange=()=>{
+    const v=di.value;if(!v)return;
+    const [y,m,d]=v.split('-').map(Number);
+    const day=Math.round((new Date(y,m-1,d)-new Date(y,0,1))/86400000)+1;
+    if(y!==state.year||day<1||day>360){
+      alert(`${state.year}년 ${dayDateText(state.year,1)}부터 ${dayDateText(state.year,360)}까지 선택할 수 있습니다.`);
+      render();return;
+    }
+    go(day);
+  };
   $('memoryForm').onsubmit=async e=>{
     e.preventDefault();
     const text=$('verseText').value.trim(); if(!text)return;
